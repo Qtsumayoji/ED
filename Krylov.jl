@@ -88,7 +88,21 @@ module Krylov
             tridiag = Matrix(Tridiagonal(β_st, α_st, β_st))
             push!(β_st, β)
         end
-        return tridiag
+        
+        # 連分数展開用にindexを調整
+        tridim = size(tridiag)[1]
+        α = []
+        for i in 1:tridim
+            append!(α, tridiag[i, i])
+        end
+        β = []
+        # βのindexの調整
+        append!(β, 0.0)
+        for i in 1:tridim - 1
+            append!(β, tridiag[i, i+1])
+        end
+
+        return α, β
     end
 
     #列ベクトルとしてsiz個のベクトルが入っているuを直交化する

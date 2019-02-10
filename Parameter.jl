@@ -23,7 +23,7 @@ module Parameter
     mutable struct Spectral_func_para
         η::Float64
         n_lanczos_vec::Int64
-        Nb::Int64
+        Nk::Int64
         NΩ::Int64
         Ω::Array{Float64, 1}
         G::Array{Complex, 2}
@@ -31,8 +31,13 @@ module Parameter
 
     mutable struct RIXS_para
         Vd::Float64
+        η::Float64
+        Γ::Float64
+        n_lanczos_vec::Int64
         # 入射光の振動数
+        ωin::Float64
         NΩ::Int64
+        # ωin - ωout
         Ω::Array{Float64, 1}
         # x-ray の運動量変化
         NQ::Int64

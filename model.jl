@@ -13,7 +13,7 @@ module Model
 
     function square_lattice(width::Int, height::Int)
         Ns = width*height
-        link_mat = zeros(Float64, Ns, Ns)
+        link_mat = zeros(Int64, Ns, Ns)
         link_list = [[] for i in 1:Ns]
         pos = Array{Float64}[zeros(3) for i in 1:Ns]
 
