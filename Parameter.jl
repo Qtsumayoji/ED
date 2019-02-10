@@ -29,6 +29,15 @@ module Parameter
         G::Array{Complex, 2}
     end
 
+    mutable struct Dynamical_structure_factor_para
+        η::Float64
+        n_lanczos_vec::Int64
+        Nk::Int64
+        NΩ::Int64
+        Ω::Array{Float64, 1}
+        G::Array{Complex, 2}
+    end
+
     mutable struct RIXS_para
         Vd::Float64
         η::Float64

@@ -3,6 +3,10 @@ module Fermion
     using SparseArrays
     include("./Krylov.jl")
 
+    using PyCall
+    @pyimport pylab as plt
+    @pyimport seaborn as sns
+
     # Ns:格子数
     function make_basis(Ns::Integer)
         nstate = 4^Ns
@@ -139,12 +143,12 @@ module Fermion
     # n↓n↑
     function coulmb_repulsion(i::Int64, Ns::Int64, state::Int64)
         if state & (1 << (i - 1)) == 0
-            return 0
+            return 0.0
         else
             if state & (1 << (i - 1 + Ns)) == 0
-                return 0
+                return 0.0
             else
-                return 1
+                return 1.0
             end
         end
     end
@@ -152,30 +156,24 @@ module Fermion
     # n
     function onsite_energy(i::Int64, state::Int64)
         if state & (1 << (i - 1)) == 0
-            return 0
+            return 0.0
         else
-            return 1
+            return 1.0
         end
+    end
+
+    function number_op(i::Int64, Ns::Int64, state::Int64)
+        return onsite_energy(i, state) + onsite_energy(i + Ns, state)
     end
 
     function calc_Hv(Ns::Int64 ,state::Int64, U::Float64, μ::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         diag = 0.0
         for i in 1:Ns
             #n↑n↓
-            ket = coulmb_repulsion(i, Ns, state)
-            if ket != 0
-                diag += U
-            end
-            #n↑
-            ket = onsite_energy(i, state)
-            if ket != 0
-                diag -= μ
-            end
-            #n↓
-            ket = onsite_energy(i + Ns, state)
-            if ket != 0
-                diag -= μ
-            end
+            diag += U*coulmb_repulsion(i, Ns, state)
+
+            #n↑ + n↓
+            diag -= μ*number_op(i, Ns, state)
         end
 
         id = reverse_basis[state]
@@ -188,14 +186,7 @@ module Fermion
         diag = 0.0
 
         # 1s-3d interaction
-        ket = onsite_energy(jd, state)
-        if ket != 0
-            diag -= Vd
-        end
-        ket = onsite_energy(jd + Ns, state)
-        if ket != 0
-            diag -= Vd
-        end
+        diag -= number_op(jd, Ns, state)
 
         id = reverse_basis[state]
         push!(col, id)
@@ -300,6 +291,65 @@ module Fermion
         return ϕ/Ns
     end
 
+    function calc_charge_correlation_func(φ, system_para, basis)
+        reverse_basis = make_reverse_basis(basis)
+
+        Ns = system_para.Ns
+        Nx = system_para.Nx
+        Ny = system_para.Ny
+        pos = system_para.pos
+        unit_vec = system_para.unit_vec
+        link_list = system_para.link_list
+
+        # 逆格子ベクトル
+        g = system_para.reciprocal_lattice_vec
+        g1 = g[1]
+        g2 = g[2]
+        g3 = g[3]
+
+        CCF = zeros(Ns, Ns)
+        
+        for i in 1:Ns
+            for j in 1:Ns
+                x = zeros(length(φ))
+                # <ninj>
+                @inbounds for state in basis
+                    ninj = number_op(i, Ns, state)*number_op(j, Ns, state)
+                    ind = reverse_basis[state]
+                    x[ind] += ninj*φ[ind]
+                end
+                CCF[i, j] = φ'*x
+            end
+        end
+
+        Cq = zeros(2*Nx, 2*Ny)
+        kx = zeros(0)
+        ky = zeros(0)
+        for m in 1:2*Nx
+            for n in 1:2*Ny
+                q = (m-1)/Nx*g1 + (n-1)/Ny*g2
+                qx = q[1]
+                qy = q[2]
+                push!(kx, qx)
+                push!(ky, qy)
+    
+                tmp_Cq = 0.0
+                for i in 1:Ns
+                    for j in 1:i - 1
+                        Δr = pos[i] - pos[j]
+                        tmp_Cq += 2.0*CCF[i, j]*cos.(q'*Δr)
+                    end
+                    tmp_Cq += CCF[i, i]
+                end
+                Cq[m, n] = tmp_Cq/Ns
+            end
+        end
+
+        #plt.heatmap(Cq, cmap="magma")
+        #plt.show()
+        return CCF, Cq
+    end
+    
     function calc_ai_state(φ, i, Ns, Ne, basis, basis_Nm)
         reverse_basis = make_reverse_basis(basis)
         reverse_basis_Nm = make_reverse_basis(basis_Nm)
@@ -314,4 +364,5 @@ module Fermion
 
         return ϕ
     end
-end
+
+end #end Fermion

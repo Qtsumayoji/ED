@@ -31,10 +31,6 @@ module Spectrum
         NΩ = spectral_func_para.NΩ
         Ω = spectral_func_para.Ω
         G = spectral_func_para.G
-        
-        t = H_para.t
-        U = H_para.U
-        μ = H_para.μ
 
         basis_Np = Fermion.make_n_basis(Ns, Ne+1)
         # 波数表示の生成演算子を作用させるためNe+1の部分空間でのハミルトニアンを作る
@@ -70,8 +66,8 @@ module Spectrum
         α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
         for i in 1:NΩ
             ω = Ω[i]
-            z = ω - Egs + im*η
-            A = calc_continued_fraction_expansion(z, -α, -β)
+            z = Egs - ω -  im*η
+            A = -calc_continued_fraction_expansion(z, α, β)
             G[m, i] += norm2_φex/A
         end
     end
@@ -117,6 +113,47 @@ module Spectrum
             A = calc_continued_fraction_expansion(z, -α, -β)
             G[m, i] += norm2_φex/A
         end
+    end
+
+    function calc_dynamical_structure_factor(m, q, E, φ, H, system_para, dynamical_structure_factor_para, basis)
+        reverse_basis = Fermion.make_reverse_basis(basis)
+
+        Ns = system_para.Ns
+        Nx = system_para.Nx
+        Ny = system_para.Ny
+        Ne = system_para.Ne
+        pos = system_para.pos
+
+        η = dynamical_structure_factor_para.η
+        n_lanczos_vec = dynamical_structure_factor_para.n_lanczos_vec
+        NΩ = dynamical_structure_factor_para.NΩ
+        Ω = dynamical_structure_factor_para.Ω
+        G = dynamical_structure_factor_para.G
+
+        x = zeros(Complex, length(φ))
+        for i in 1:Ns
+            # ∑iσ exp(iqr)niσ|x>
+            r = pos[i]
+            j = 1
+            @inbounds for state in basis
+                a = exp(im*q'*r)*Fermion.number_op(i, Ns, state)
+                x[j] += a*φ[j]
+                j += 1
+            end
+        end
+
+        norm2_x = x'*x
+        x /= norm(x)
+
+        α, β = Krylov.lanczos_vector(H, x; minite = n_lanczos_vec)
+
+        for i in 1:NΩ
+            ω = Ω[i]
+            z = E + ω + im*η
+            A = calc_continued_fraction_expansion(z, α, β)
+            G[m, i] += norm2_x/A
+        end
+
     end
 
     function calc_1d_spectral_func(Egs, φgs, H_para, system_para, spectral_func_para, basis)
@@ -194,4 +231,5 @@ module Spectrum
             println(m*NΩ,"/",NΩ*Nb*Ns)
         end
     end
-end
+
+end # end Spectrum
