@@ -18,7 +18,7 @@ const Nx = 8
 const Ny = 1
 const Ns = Nx*Ny*ns
 # 電子数
-const Ne = Ns
+const Ne = Ns 
 
 function plot_spectral_func(system_para, spectral_func_para)
     g = system_para.reciprocal_lattice_vec
@@ -44,7 +44,7 @@ function plot_spectral_func(system_para, spectral_func_para)
 
     Iω = zeros(NΩ)
     for i in 1:NΩ
-        for m in 1:Ns
+        for m in 1:Nk
             Iω[i] += -1.0/pi*imag(G[m, i])
         end
     end
@@ -96,16 +96,12 @@ function test()
     g3 = 2.0*pi*cross(unit_vec[1], unit_vec[2])/V
     g = [zeros(3) for i in 1:3]
     g[1] = g1; g[2] = g2; g[3] = g3
-    println(g1)
-    println(g2)
-    println(g3)
 
     system_para = Parameter.System_para(ns, Nx, Ny, Ns, Ne, unit_vec, g, link_mat, link_list, pos)
     Model.show_links(link_mat)
 
     # 電子数とtotSzの保存した基底を作成
     basis = Fermion.make_n_basis(Ns, Ne)
-    # half filling
     nupspin = div(Ne, 2)
     ndownspin = Ne - nupspin
     basis = Fermion.make_s_basis(Ns, nupspin, ndownspin, basis)
@@ -127,30 +123,31 @@ function test()
     φgs = @time Krylov.inverse_iteration(H, Egs, maxite=2000, ϵ_inv=1E-8, ϵ_cg=1E-5)
     φgs /= norm(φgs)
 
-    println("calc_charge_correlation_func")
-    @time Fermion.calc_charge_correlation_func(φgs, system_para, basis)
+    #println("calc_charge_correlation_func")
+    #@time Fermion.calc_charge_correlation_func(φgs, system_para, basis)
 
-    println("calc_1d_spectral_func...")
+    println("calc_spectral_func...")
     η = 1e-2
     n_lanczos_vec = 200
-    Nk = Nx
+    Nk = 50
     NΩ = 500
     Ω = range(-U, stop=U, length=NΩ)
     G = zeros(Complex, Nk, NΩ)
     spectral_func_para = Parameter.Spectral_func_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
-
-    N_point = Ns
     
-    for m in 1:N_point
-        q = (m - 1)*g1/Nx
-        #Spectrum.calc_spectral_func_k(m, q, Egs, φgs, H_para, system_para, spectral_func_para, basis)
+    for m in 1:Nk
+        # Γ-M
+        q = (m-1)*g1/Nk
+        # Γ-K
+        #q = (m-1)*g1/Nx + (m-1)*g2/Ny
+        Spectrum.calc_spectral_func(m, q, Egs, φgs, H_para, system_para, spectral_func_para, basis)
     end
-    #plot_spectral_func(system_para, spectral_func_para)
+    plot_spectral_func(system_para, spectral_func_para)
 
     println("calc_dynamical_structure_factor")
     η = 1e-2
     n_lanczos_vec = 200
-    Nk = 50
+    Nk = 100
     NΩ = 1000
     Ω = range(-U/100, stop=U/100, length=NΩ)
     G = zeros(Complex, Nk, NΩ)

@@ -13,7 +13,7 @@ module Model
 
     function square_lattice(width::Int, height::Int)
         Ns = width*height
-        link_mat = zeros(Int64, Ns, Ns)
+        link_mat = [[0 for i in 1:Ns] for i in 1:Ns]
         link_list = [[] for i in 1:Ns]
         pos = Array{Float64}[zeros(3) for i in 1:Ns]
 
@@ -45,10 +45,10 @@ module Model
                 end
                 #println(site," ",r_site," ",l_site," ",u_site," ",d_site)
 
-                link_mat[site, r_site] = 1
-                link_mat[site, l_site] = 1
-                link_mat[site, u_site] = 1
-                link_mat[site, d_site] = 1
+                link_mat[site][r_site] = 1
+                link_mat[site][l_site] = 1
+                link_mat[site][u_site] = 1
+                link_mat[site][d_site] = 1
 
                 pos[site] = i*a2 + j*a1 
             end
@@ -56,7 +56,7 @@ module Model
         
         if height == 1
             for i in 1:Ns
-                link_mat[i, i] = no_link
+                link_mat[i][i] = no_link
             end
         end
 
@@ -184,7 +184,7 @@ module Model
         Ns = length(link_mat[1,:])
         for i in 1:Ns
             for j in 1:Ns
-                if link_mat[i, j] != no_link
+                if link_mat[i][j] != no_link
                     print(1," ")
                 else
                     print(0," ")
@@ -197,10 +197,49 @@ module Model
     function make_link_list(link_mat, link_list, Ns)
         for i in 1:Ns
             for j in 1:Ns
-                if link_mat[i, j] != no_link & i != j
+                if link_mat[i][j] != no_link && i != j
                     push!(link_list[i], j)
                 end
             end
         end
     end
+
+    function read_model(filename)
+        fp = open(filename, "r" )
+        Ns = readline(fp)
+        Ns = split(Ns, "=")[2]
+        Ns = parse(Int64, Ns)
+        println(Ns)
+
+        link_mat = [[[] for i in 1:Ns] for i in 1:Ns]
+
+        for line in eachline(fp)
+            str = split(line, " ")
+            # はじめの2つはsite_i,site_j
+            i_site = parse(Int64, str[1])
+            j_site = parse(Int64, str[2])
+            
+            for a in str[3:end]
+                push!(link_mat[i_site][j_site], parse(Float64, a))
+            end
+            println(i_site," ",j_site," ",link_mat[i_site][j_site])
+        end
+
+        link_list = [[] for i in 1:Ns]
+        for i in 1:Ns
+            for j in 1:Ns
+                #println(link_mat[i][j])
+                if link_mat[i][j] != [] && i != j
+                    tmp = [j ,link_mat[i][j]]
+                    push!(link_list[i], tmp)
+                end
+            end
+        end
+        println(link_list)
+    end
 end
+
+function test()
+    Model.read_model("extHubbard.txt")
+end
+test()

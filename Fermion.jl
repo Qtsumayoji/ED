@@ -14,6 +14,7 @@ module Fermion
         for i in 1:nstate
             push!(basis, i)
         end
+
         return basis
     end
 
@@ -27,6 +28,7 @@ module Fermion
                 push!(basis, i)
             end
         end
+
         return basis
     end
 
@@ -41,6 +43,7 @@ module Fermion
                 end
             end
         end
+
         return sbasis
     end
 
@@ -51,6 +54,7 @@ module Fermion
             reverse_basis[basis[i]] = i
             #println(bits(basis[i]))
         end
+
         return reverse_basis
     end
 
@@ -141,7 +145,7 @@ module Fermion
     end
 
     # n↓n↑
-    function coulmb_repulsion(i::Int64, Ns::Int64, state::Int64)
+    function nund(i::Int64, Ns::Int64, state::Int64)
         if state & (1 << (i - 1)) == 0
             return 0.0
         else
@@ -170,7 +174,7 @@ module Fermion
         diag = 0.0
         for i in 1:Ns
             #n↑n↓
-            diag += U*coulmb_repulsion(i, Ns, state)
+            diag += U*nund(i, Ns, state)
 
             #n↑ + n↓
             diag -= μ*number_op(i, Ns, state)
@@ -183,8 +187,6 @@ module Fermion
     end
 
     function calc_1s3d_for_indirect_RIXS(Ns::Int64 ,state::Int64, jd::Int64, Vd::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
-        diag = 0.0
-
         # 1s-3d interaction
         diag -= number_op(jd, Ns, state)
 
@@ -301,12 +303,6 @@ module Fermion
         unit_vec = system_para.unit_vec
         link_list = system_para.link_list
 
-        # 逆格子ベクトル
-        g = system_para.reciprocal_lattice_vec
-        g1 = g[1]
-        g2 = g[2]
-        g3 = g[3]
-
         CCF = zeros(Ns, Ns)
         
         for i in 1:Ns
@@ -322,11 +318,17 @@ module Fermion
             end
         end
 
-        Cq = zeros(2*Nx, 2*Ny)
+        # 逆格子ベクトル
+        g = system_para.reciprocal_lattice_vec
+        g1 = g[1]
+        g2 = g[2]
+        g3 = g[3]
+
+        Cq = zeros(Nx, Ny)
         kx = zeros(0)
         ky = zeros(0)
-        for m in 1:2*Nx
-            for n in 1:2*Ny
+        for m in 1:Nx
+            for n in 1:Ny
                 q = (m-1)/Nx*g1 + (n-1)/Ny*g2
                 qx = q[1]
                 qy = q[2]
@@ -345,8 +347,8 @@ module Fermion
             end
         end
 
-        #plt.heatmap(Cq, cmap="magma")
-        #plt.show()
+        sns.heatmap(Cq, cmap="magma")
+        plt.show()
         return CCF, Cq
     end
     

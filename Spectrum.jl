@@ -16,10 +16,7 @@ module Spectrum
     end
 
     # m:Gの波数のindex
-    function calc_spectral_func_k(m, k, Egs, φgs, H_para, system_para, spectral_func_para, basis)
-        ns = system_para.ns
-        Nx = system_para.Nx
-        Ny = system_para.Ny
+    function calc_spectral_func(m, k, Egs, φgs, H_para, system_para, spectral_func_para, basis)
         Ns = system_para.Ns
         Ne = system_para.Ne
         pos = system_para.pos
@@ -32,7 +29,7 @@ module Spectrum
         Ω = spectral_func_para.Ω
         G = spectral_func_para.G
 
-        basis_Np = Fermion.make_n_basis(Ns, Ne+1)
+        basis_Np = Fermion.make_n_basis(Ns, Ne + 1)
         # 波数表示の生成演算子を作用させるためNe+1の部分空間でのハミルトニアンを作る
         H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Np)
         φex = Fermion.calc_ck_state(φgs, k, Ne, pos, basis, basis_Np)
@@ -42,7 +39,7 @@ module Spectrum
     
         # 連分数展開の準備
         # 励起状態を試行ベクトルとしてランチョスベクトルを計算
-        α, β = Krylov.lanczos_vector(H, φex; minite =n_lanczos_vec)
+        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
     
         # 各周波数について連分数展開によりG(k,ω)を計算
         for i in 1:NΩ
@@ -52,12 +49,11 @@ module Spectrum
             G[m, i] += norm2_φex/A
         end
     
-        basis_Np = Fermion.make_n_basis(Ns, Ne-1)
+        basis_Np = Fermion.make_n_basis(Ns, Ne - 1)
         basis_Nm = basis_Np
         H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Nm)
 
         φex = Fermion.calc_ak_state(φgs, k, Ne, pos, basis, basis_Nm)
-        #println(norm(φex))
         norm2_φex = φex'*φex
         φex /= norm(φex)
         
@@ -74,8 +70,6 @@ module Spectrum
 
     # m:Gの波数のindex
     function calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
-        Nx = system_para.Nx
-        Ny = system_para.Ny
         Ns = system_para.Ns 
         Ne = system_para.Ne 
         pos = system_para.pos
@@ -119,9 +113,6 @@ module Spectrum
         reverse_basis = Fermion.make_reverse_basis(basis)
 
         Ns = system_para.Ns
-        Nx = system_para.Nx
-        Ny = system_para.Ny
-        Ne = system_para.Ne
         pos = system_para.pos
 
         η = dynamical_structure_factor_para.η
