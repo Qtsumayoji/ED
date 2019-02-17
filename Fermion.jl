@@ -126,6 +126,36 @@ module Fermion
         println(sign)
     end
 
+    # n↓n↑
+    function nund(i::Int64, Ns::Int64, state::Int64)
+        if state & (1 << (i - 1)) == 0
+            return 0.0
+        else
+            if state & (1 << (i - 1 + Ns)) == 0
+                return 0.0
+            else
+                return 1.0
+            end
+        end
+    end
+
+    # n
+    function niσ(i::Int64, state::Int64)
+        if state & (1 << (i - 1)) == 0
+            return 0.0
+        else
+            return 1.0
+        end
+    end
+
+    function number_op(i::Int64, Ns::Int64, state::Int64)
+        return niσ(i, state) + niσ(i + Ns, state)
+    end
+
+    function ninj(i::Int64, j::Int64, Ns::Int64, state::Int64)
+        return number_op(i, Ns, state)*number_op(j, Ns, state)
+    end
+
     function calc_Hkij(i::Int64, j::Int64, Ns::Int64, state::Int64, t::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         # up spin
         sig, ket = ciaj(i, j, state)
@@ -144,32 +174,6 @@ module Fermion
         end
     end
 
-    # n↓n↑
-    function nund(i::Int64, Ns::Int64, state::Int64)
-        if state & (1 << (i - 1)) == 0
-            return 0.0
-        else
-            if state & (1 << (i - 1 + Ns)) == 0
-                return 0.0
-            else
-                return 1.0
-            end
-        end
-    end
-
-    # n
-    function onsite_energy(i::Int64, state::Int64)
-        if state & (1 << (i - 1)) == 0
-            return 0.0
-        else
-            return 1.0
-        end
-    end
-
-    function number_op(i::Int64, Ns::Int64, state::Int64)
-        return onsite_energy(i, state) + onsite_energy(i + Ns, state)
-    end
-
     function calc_Hv(Ns::Int64 ,state::Int64, U::Float64, μ::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         diag = 0.0
         for i in 1:Ns
@@ -186,9 +190,30 @@ module Fermion
         push!(val, diag)
     end
 
+    function calc_H_diag(Ns::Int64 ,state::Int64, diag::Float64, link_list, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
+        nlinks = length(link_list[:])
+        for i in 1:Ns
+            link = link_list[i][1]
+            para = link[3]
+            U = para[1]
+            μ = para[2]
+            #println(link)
+
+            # n↑n↓
+            diag += U*nund(i, Ns, state)
+            # n↑ + n↓
+            diag -= μ*number_op(i, Ns, state)
+        end
+
+        id = reverse_basis[state]
+        push!(col, id)
+        push!(row, id)
+        push!(val, diag)
+    end
+
     function calc_1s3d_for_indirect_RIXS(Ns::Int64 ,state::Int64, jd::Int64, Vd::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         # 1s-3d interaction
-        diag -= number_op(jd, Ns, state)
+        diag = -Vd*number_op(jd, Ns, state)
 
         id = reverse_basis[state]
         push!(col, id)
@@ -237,12 +262,50 @@ module Fermion
         val = Float64[]
     
         @inbounds for state in basis
-            calc_1s3d_for_indirect_RIXS(Ns, state, row, col, val, jd, Vd, reverse_basis)
+            calc_1s3d_for_indirect_RIXS(Ns, state, jd, Vd, row, col, val, reverse_basis)
         end
     
         H1s3d = sparse(row, col, val)
         return H1s3d
     end
+
+    function calc_extHubbard_model(system_para, basis)
+        println("dim = ", length(basis))
+        
+        Ns = system_para.Ns
+        link_list = system_para.link_list
+
+        reverse_basis = make_reverse_basis(basis)
+    
+        row = Int64[]
+        col = Int64[]
+        val = Float64[]
+    
+        @inbounds for state in basis
+            diag = 0.0
+            @inbounds for i in 1:Ns
+                links = link_list[i]
+                @inbounds for link in links[2:end]
+                    #println(link)
+                    j = link[1]
+                    #neighbor = link[2]
+                    para = link[3]
+                    t = para[1]
+                    V = para[2]
+                    #println(para)
+
+                    calc_Hkij(i, j, Ns, state, t, row, col, val, reverse_basis)
+                    diag += V*ninj(i, j, Ns, state)
+                end
+            end
+
+            calc_H_diag(Ns, state, diag, link_list, row, col, val, reverse_basis)
+        end
+    
+        H_mat = sparse(row, col, val)
+        return H_mat
+    end
+
 
     # basisにはあらかじめ粒子数-1の基底を含めておくように
     # Ne粒子系にup spinを一つ加えた時のスペクトル関数を計算
@@ -366,5 +429,4 @@ module Fermion
 
         return ϕ
     end
-
 end #end Fermion

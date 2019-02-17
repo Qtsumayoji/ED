@@ -1,4 +1,5 @@
 module Model 
+    include("./Parameter.jl")
     using LinearAlgebra
 
     function show_links(link_mat)
@@ -8,9 +9,9 @@ module Model
         for i in 1:Ns
             for j in 1:Ns
                 if link_mat[i][j] != []
-                    print(1," ")
+                    print(1, " ")
                 else
-                    print(0," ")
+                    print(0, " ")
                 end
             end
             println("(",i," site)")
@@ -21,13 +22,17 @@ module Model
         Ns = size(link_mat)[1]
         link_list = [[] for i in 1:Ns]
         for i in 1:Ns
+            tmp = [i ,link_mat[i][i][1], link_mat[i][i][2:end]]
+            push!(link_list[i], tmp)
             for j in 1:Ns
                 #println(link_mat[i][j])
                 if link_mat[i][j] != [] && i != j
-                    tmp = [j ,link_mat[i][j]]
+                    tmp = [j ,link_mat[i][j][1], link_mat[i][j][2:end]]
                     push!(link_list[i], tmp)
                 end
             end
+
+            println(i," ",link_list[i])
         end
 
         return link_list
@@ -35,11 +40,25 @@ module Model
 
     function read_model(filename)
         fp = open(filename, "r" )
-        # 1行目はサイト数の読み込み
-        Ns = readline(fp)
-        Ns = split(Ns, "=")[2]
-        Ns = parse(Int64, Ns)
-        println("Num site=",Ns)
+        # 1-3行目はサイト数の読み込み
+        ns = readline(fp)
+        ns = split(ns, "=")[2]
+        ns = parse(Int64, ns)
+
+        Nx = readline(fp)
+        Nx = split(Nx, "=")[2]
+        Nx = parse(Int64, Nx)
+
+        Ny = readline(fp)
+        Ny = split(Ny, "=")[2]
+        Ny = parse(Int64, Ny)
+    
+        Nz = readline(fp)
+        Nz = split(Nz, "=")[2]
+        Nz = parse(Int64, Nz)
+
+        Ns = ns*Nx*Ny*Nz
+        Nxyz = [ns; Nx; Ny; Nz]
 
         pos = Array{Float64}[zeros(3) for i in 1:Ns]
         for i in 1:Ns
@@ -60,25 +79,38 @@ module Model
             # はじめの2つはsite_i,site_j
             i_site = parse(Int64, str[1])
             j_site = parse(Int64, str[2])
-
-            for a in str[3:end]
+            # 3つめn次近接を識別するパラメータ
+            push!(link_mat[i_site][j_site], parse(Int64, str[3]))
+            for a in str[4:end]
                 push!(link_mat[i_site][j_site], parse(Float64, a))
             end
             #println(i_site," ",j_site," ",link_mat[i_site][j_site])
         end
+        show_links(link_mat)
 
         link_list = make_link_list(link_mat)
 
-        return link_mat, link_list, pos
+        return link_mat, link_list, pos, Nxyz
     end
 
-    function push_para(link, para)
+    # fileから読み込めるようにする
+    function get_square_lattice_unit_vec()
+        unit_vec = Array{Float64}[zeros(3) for i in 1:3]
+        a = 1.0
+        unit_vec[1] = [ a ; 0.0; 0.0]
+        unit_vec[2] = [0.0;   a; 0.0]
+        unit_vec[3] = [0.0; 0.0;   a]
+        return unit_vec
+    end
+
+    function push_para(link, i, para)
         if link == []
+            push!(link, i)
             push!(link, para)
         end
     end
 
-    function make_sq_lattice(filename, Nx, Ny, ax, ay, H0 = [], H1 = [], H2 = [], H3 = [])
+    function make_sq_lattice(filename, ns, Nx, Ny, ax, ay, H0 = [], H1 = [], H2 = [], H3 = [])
         Ns = Nx*Ny
         link_mat = [[[] for i in 1:Ns] for i in 1:Ns]
         link_list = [[] for i in 1:Ns]
@@ -89,7 +121,10 @@ module Model
         a3 = [0.0; 0.0; 1.0]
 
         fp = open(filename, "w" )
-        write(fp, "Ns="*string(Ns)*"\n")
+        write(fp, "ns="*string(ns)*"\n")
+        write(fp, "Nx="*string(Nx)*"\n")
+        write(fp, "Ny="*string(Ny)*"\n")
+        write(fp, "Nz="*string(1)*"\n")
 
         # 1-Nsまでのサイトに振られた番号を計算
         # x正方向に1ずつ増えてy正方向に積み重なっていく
@@ -120,39 +155,40 @@ module Model
                 pLD = compute_n( NL,  ND, Nx)
                 pRU = compute_n( NR,  NU, Nx)
                 pRD = compute_n( NR,  ND, Nx)
-                println(pLL," ",pL," ",p," ",pR," ",pRR)
+                #println(pLL," ",pL," ",p," ",pR," ",pRR)
 
                 if H0 != []
-                    push_para(link_mat[p][p], H0)
+                    push_para(link_mat[p][p], 0, H0)
                 end
                 # 近接
                 if H1 != []
-                    push_para(link_mat[p][pL], H1)
-                    push_para(link_mat[p][pR], H1)
+                    push_para(link_mat[p][pL], 1, H1)
+                    push_para(link_mat[p][pR], 1, H1)
                     # iy == 1 だと上下方向の周期境界条件でlink_mat[p][p]に値が入る
-                    if iy != 1
-                        push_para(link_mat[p][pU], H1)
-                        push_para(link_mat[p][pD], H1)
+                    if Ny != 1
+                        push_para(link_mat[p][pU], 1, H1)
+                        push_para(link_mat[p][pD], 1, H1)
                     end
                 end
                 # 斜め方向
                 if H2 != []
-                    push_para(link_mat[p][pLU], H2)
-                    push_para(link_mat[p][pLD], H2)
-                    push_para(link_mat[p][pRU], H2)
-                    push_para(link_mat[p][pRD], H2)
+                    push_para(link_mat[p][pLU], 2, H2)
+                    push_para(link_mat[p][pLD], 2, H2)
+                    push_para(link_mat[p][pRU], 2, H2)
+                    push_para(link_mat[p][pRD], 2, H2)
                 end
                 # 次近接?
                 if H3 != []
-                    push_para(link_mat[p][pLL], H3)
-                    push_para(link_mat[p][pRR], H3)
-                    if iy != 1
-                        push_para(link_mat[p][pUU], H3)
-                        push_para(link_mat[p][pDD], H3)
+                    push_para(link_mat[p][pLL], 3, H3)
+                    push_para(link_mat[p][pRR], 3, H3)
+                    if Ny != 1
+                        push_para(link_mat[p][pUU], 3, H3)
+                        push_para(link_mat[p][pDD], 3, H3)
                     end
                 end
 
                 pos[p] = ix*a1 + iy*a2
+                #println(link_mat[p][p])
             end
         end
 
@@ -173,7 +209,7 @@ module Model
                     end
                     if i == Ns & j == Ns
                     else
-                        write(fp,"\n")
+                        write(fp, "\n")
                     end
                 end
             end
@@ -181,29 +217,33 @@ module Model
         close(fp)
     end
 
-    function test_make_sq_lattice()
+
+    function test()
+        filename = "1d_extHubbard.txt"
+        # 単位胞あたりのサイト数
+        ns = 1
         Nx = 6
         Ny = 1
         ax = 1.0
         ay = 1.0
 
         t1 = 1.0
-        U = 10.0*t1
-        V = 2*t1
-        t2 = -0.35*t1
-        H0 = [0; U]
-        H1 = [1; t1; V]
-        H3 = [3; t2]
+        U  = 10.0*t1
+        V  = 0.0#2*t1
+        t2 = -0.34*t1
+        μ  = 0.0
+        H0 = [U; μ]
+        H1 = [t1; V]
+        H3 = [t2; 0.0]
 
-        make_sq_lattice("test.txt", Nx, Ny, ax, ay, H0, H1,[], H3)
-    end
-    #test_make_sq_lattice()
+        make_sq_lattice(filename, ns, Nx, Ny, ax, ay, H0, H1,[], H3)
 
-    function test()
-        test_make_sq_lattice()
-        link_mat, link_list, pos = read_model("test.txt")
+        link_mat, link_list, pos = read_model(filename)
         println(link_list)
         show_links(link_mat)
+        println(typeof(link_mat))
+        println(typeof(link_list))
     end
-    test()
 end # end Model
+
+Model.test()
