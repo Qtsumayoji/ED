@@ -108,6 +108,10 @@ module Spectrum
             # 2 = spin
             G[m, i] = 2.0*norm2_φex/A
         end
+
+        a = 1.0/π*imag(G[m, 1])
+        elas = [a*η^2.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
+        G[m,:] -= im*pi*elas
     end
 
     # m:Gの波数のindex
