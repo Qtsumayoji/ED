@@ -176,32 +176,36 @@ function test()
     #plot_spectral_func(system_para, spectral_func_para)
 
     Vd = 15.0*t
-    η = 0.1*t
+    η = 0.2*t
     Γ = t
     n_lanczos_vec = 200
     # 入射光の振動数
-    ωin = -21.2*t
+    ωin = -21.0*t
     NΩ = 1000
     # ωin - ωout
-    Ω = range(-24, stop=-10, length=NΩ)
+    Ω = range(0.0, stop=18.0, length=NΩ)
+    #Ω = range(-25.0, stop=-10, length=NΩ)
     # x-ray の運動量変化
-    NQ = 2
+    NQ = 8
     Q = range(0.0, stop=pi, length=NQ)
     G_RIXS = zeros(Complex, NQ, NΩ)
     RIXS_para = Parameter.RIXS_para(Vd, η, Γ, n_lanczos_vec, ωin, NΩ, Ω, NQ, Q, G_RIXS)
-    #G_REXS = zeros(Complex, NQ, NΩ)
-    #REXS_para = Parameter.RIXS_para(Vd, η, 0.0, n_lanczos_vec, ωin, NΩ, Ω, NQ, Q, G_REXS)
-    H = @time Fermion.calc_extHubbard_model(system_para, basis)
     
+    H = @time Fermion.calc_extHubbard_model(system_para, basis)
     @time for m in 1:NQ
         # 外場の波数
-        q = (m-1)/(NQ-1)*[pi;pi;0]
-        Spectrum.calc_XAS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
+        q = (m-1)/(NQ-1)*g1#[pi;0;0]
+       @time Spectrum.calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
     end
 
+    plt.subplot()
     sns.set_palette("hsv",NQ)
     for i in 1:NQ
-        plt.plot(Ω, 1.0/pi*imag(G_RIXS[i,:]),label=string(i))
+        b = [i*0.5 for j in 1:NΩ]
+        a = 1.0/π*imag(G_RIXS[i, 1])
+        elas = [a*η^2.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
+        G_RIXS[i,:] -= im*pi*elas
+        plt.plot(Ω, 1.0/π*imag(G_RIXS[i, :]),label=string(i))
         plt.legend(loc="best")
     end
 

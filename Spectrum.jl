@@ -111,6 +111,46 @@ module Spectrum
     end
 
     # m:Gの波数のindex
+    function calc_REXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
+        Ns = system_para.Ns 
+        Ne = system_para.Ne 
+        pos = system_para.pos
+        unit_vec = system_para.unit_vec 
+        link_list = system_para.link_list 
+
+        Vd = RIXS_para.Vd
+        η = RIXS_para.η
+        Γ = RIXS_para.Γ
+        ωin = RIXS_para.ωin
+        n_lanczos_vec = RIXS_para.n_lanczos_vec
+        NΩ = RIXS_para.NΩ
+        Ω = RIXS_para.Ω 
+        G = RIXS_para.G
+
+        dim = length(φgs)
+        φex = zeros(Complex, dim)
+
+        z = Diagonal([Egs + ωin + im*Γ for i in 1:dim])
+        for id in 1:Ns
+            r = pos[id]
+            H1s3d = H + Fermion.calc_H1s3d_for_indirect_RIXS(id, Vd, system_para, basis)
+            φex += exp(im*q'*r)*Krylov.BiCGSTAB(H1s3d - z, φgs, maxite = 200, ϵ = 1e-6)
+        end
+        
+        norm2_φex = φex'*φex
+        φex /= norm(φex)
+        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
+        for i in 1:NΩ
+            ω = Ω[i]
+            z = Egs + ω + im*η
+            A = -calc_continued_fraction_expansion(z, α, β)
+            # 2 = spin
+            G[m, i] = 2.0*norm2_φex/A
+        end
+    end
+
+
+    # m:Gの波数のindex
     function calc_XAS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
         Ns = system_para.Ns 
         link_list = system_para.link_list 
