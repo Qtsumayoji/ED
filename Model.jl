@@ -24,7 +24,7 @@ module Model
         for i in 1:Ns
             tmp = [i ,link_mat[i][i][1], link_mat[i][i][2:end]]
             push!(link_list[i], tmp)
-            for j in 1:Ns
+            for j in 1:i
                 #println(link_mat[i][j])
                 if link_mat[i][j] != [] && i != j
                     tmp = [j ,link_mat[i][j][1], link_mat[i][j][2:end]]
@@ -231,18 +231,21 @@ module Model
         U  = 10.0*t1
         V  = 0.0#1.5*t1
         t2 = 0.0#-0.34*t1
-        μ  = 0.0
+        μ  = 0.0#U/2
+        # 0次近接
         H0 = [U; μ]
+        # 1次元鎖の1次近接
         H1 = [t1; V]
+        # 1次元鎖の2次近接,正方格子の3次近接
         H3 = [t2; 0.0]
 
         make_sq_lattice(filename, ns, Nx, Ny, ax, ay, H0, H1,[], H3)
 
         link_mat, link_list, pos = read_model(filename)
-        println(link_list)
-        show_links(link_mat)
-        println(typeof(link_mat))
-        println(typeof(link_list))
+        #println(link_list)
+        #show_links(link_mat)
+        #println(typeof(link_mat))
+        #println(typeof(link_list))
     end
 end # end Model
 

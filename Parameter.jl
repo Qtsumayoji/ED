@@ -14,10 +14,12 @@ module Parameter
     end
 
     mutable struct Hubbard_para
-        t::Float64
+        t1::Float64
+        t2::Float64
+        t3::Float64
         U::Float64
         μ::Float64
-        Vd::Float64
+        V::Float64
     end
 
     struct Model_para

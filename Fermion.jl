@@ -172,6 +172,21 @@ module Fermion
             push!(col, reverse_basis[ket])
             push!(val, -t*sig)
         end
+
+        sig, ket = ciaj(j, i, state)
+        if ket != 0
+            push!(row, reverse_basis[state])
+            push!(col, reverse_basis[ket])
+            push!(val, -t*sig)
+        end
+
+        # down spin
+        sig, ket = ciaj(j + Ns, i + Ns, state)
+        if ket != 0
+            push!(row, reverse_basis[state])
+            push!(col, reverse_basis[ket])
+            push!(val, -t*sig)
+        end
     end
 
     function calc_Hv(Ns::Int64 ,state::Int64, U::Float64, μ::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
@@ -191,7 +206,6 @@ module Fermion
     end
 
     function calc_H_diag(Ns::Int64 ,state::Int64, diag::Float64, link_list, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
-        nlinks = length(link_list[:])
         for i in 1:Ns
             link = link_list[i][1]
             para = link[3]
@@ -288,7 +302,7 @@ module Fermion
                 @inbounds for link in links[2:end]
                     #println(link)
                     j = link[1]
-                    #neighbor = link[2]
+                    #　neighbor = link[2]
                     para = link[3]
                     t = para[1]
                     V = para[2]
