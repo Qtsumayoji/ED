@@ -4,11 +4,12 @@ module Parameter
         ns::Int64
         Nx::Int64
         Ny::Int64
+        Nz::Int64
         Ns::Int64
         Ne::Int64
         unit_vec::Array{Array{Float64, 1}}
         reciprocal_lattice_vec::Array{Array{Float64, 1}}
-        link_mat::Array{Array{Int64,1},1}
+        link_mat::Array{Array{Any,1},1}
         link_list::Array{Array{Any}, 1}
         pos::Array{Array{Float64}}
     end
@@ -20,19 +21,6 @@ module Parameter
         U::Float64
         μ::Float64
         V::Float64
-    end
-
-    struct Model_para
-        ns::Int64
-        Nx::Int64
-        Ny::Int64
-        Ns::Int64
-        Ne::Int64
-        unit_vec::Array{Array{Float64, 1}}
-        reciprocal_lattice_vec::Array{Array{Float64, 1}}
-        link_mat::Array{Array{Array{Any,1},1},1}
-        link_list::Array{Array{Any}, 1}
-        pos::Array{Array{Float64}}
     end
 
     mutable struct Spectral_func_para

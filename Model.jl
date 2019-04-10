@@ -57,8 +57,12 @@ module Model
         Nz = split(Nz, "=")[2]
         Nz = parse(Int64, Nz)
 
-        Ns = ns*Nx*Ny*Nz
-        Nxyz = [ns; Nx; Ny; Nz]
+        Ns = readline(fp)
+        Ns = split(Ns, "=")[2]
+        Ns = parse(Int64, Ns)
+
+        system_size = [ns; Nx; Ny; Nz; Ns]
+        #println(system_size)
 
         pos = Array{Float64}[zeros(3) for i in 1:Ns]
         for i in 1:Ns
@@ -90,7 +94,19 @@ module Model
 
         link_list = make_link_list(link_mat)
 
-        return link_mat, link_list, pos, Nxyz
+        return link_mat, link_list, pos, system_size
+    end
+
+    #そのうち
+    function read_RIXS_para(filename)
+        core_hole_para = []
+        fp = open(filename, "r" )
+        # 1-3行目はサイト数の読み込み
+        ns = readline(fp)
+        ns = split(ns, "=")[2]
+        ns = parse(Int64, ns)
+
+        return core_hole_para
     end
 
     # fileから読み込めるようにする
@@ -125,6 +141,7 @@ module Model
         write(fp, "Nx="*string(Nx)*"\n")
         write(fp, "Ny="*string(Ny)*"\n")
         write(fp, "Nz="*string(1)*"\n")
+        write(fp, "Ns="*string(Ns)*"\n")
 
         # 1-Nsまでのサイトに振られた番号を計算
         # x正方向に1ずつ増えてy正方向に積み重なっていく
@@ -216,37 +233,4 @@ module Model
         end
         close(fp)
     end
-
-
-    function test()
-        filename = "1d_extHubbard.txt"
-        # 単位胞あたりのサイト数
-        ns = 1
-        Nx = 6
-        Ny = 1
-        ax = 1.0
-        ay = 1.0
-
-        t1 = 1.0
-        U  = 10.0*t1
-        V  = 0.0#1.5*t1
-        t2 = 0.0#-0.34*t1
-        μ  = 0.0#U/2
-        # 0次近接
-        H0 = [U; μ]
-        # 1次元鎖の1次近接
-        H1 = [t1; V]
-        # 1次元鎖の2次近接,正方格子の3次近接
-        H3 = [t2; 0.0]
-
-        make_sq_lattice(filename, ns, Nx, Ny, ax, ay, H0, H1,[], H3)
-
-        link_mat, link_list, pos = read_model(filename)
-        #println(link_list)
-        #show_links(link_mat)
-        #println(typeof(link_mat))
-        #println(typeof(link_list))
-    end
 end # end Model
-
-Model.test()

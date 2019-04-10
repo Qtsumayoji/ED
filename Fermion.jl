@@ -320,6 +320,43 @@ module Fermion
         return H_mat
     end
 
+    function calc_3band_dp_model(H_para, system_para, basis)
+        println("dim = ", length(basis))
+        
+        Ns = system_para.Ns
+        link_list = system_para.link_list
+
+        reverse_basis = make_reverse_basis(basis)
+    
+        row = Int64[]
+        col = Int64[]
+        val = Float64[]
+    
+        @inbounds for state in basis
+            diag = 0.0
+            @inbounds for i in 1:Ns
+                links = link_list[i]
+                @inbounds for link in links[2:end]
+                    #println(link)
+                    j = link[1]
+                    #　neighbor = link[2]
+                    para = link[3]
+                    t = para[1]
+                    V = para[2]
+                    #println(para)
+
+                    calc_Hkij(i, j, Ns, state, t, row, col, val, reverse_basis)
+                    diag += V*ninj(i, j, Ns, state)
+                end
+            end
+
+            calc_H_diag(Ns, state, diag, link_list, row, col, val, reverse_basis)
+        end
+    
+        H_mat = sparse(row, col, val)
+        return H_mat
+    end
+
 
     # basisにはあらかじめ粒子数-1の基底を含めておくように
     # Ne粒子系にup spinを一つ加えた時のスペクトル関数を計算

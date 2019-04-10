@@ -3,7 +3,7 @@ using SparseArrays
 using Distributions
 using PyCall
 
-@pyimport pylab as plt
+@pyimport matplotlib.pyplot as plt
 @pyimport seaborn as sns
 
 include("./Model.jl")
@@ -11,6 +11,8 @@ include("./Krylov.jl")
 include("./Fermion.jl")
 include("./Spectrum.jl")
 include("./Parameter.jl")
+
+#BLAS.set_num_threads(2)
 
 t = 1.0
 U = 10.0*t
@@ -67,7 +69,7 @@ function main_RIXS(Egs, φgs, system_para, basis)
     Γ = t
     n_lanczos_vec = 200
     # 入射光の振動数
-    ωin = -21.0*t
+    ωin = -14.0*t
     NΩ = 1000
     # ωin - ωout
     Ω = range(0.0, stop=15.0, length=NΩ)
@@ -99,7 +101,7 @@ end
 function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     println("calc_dynamical_structure_factor")
     g1 = system_para.reciprocal_lattice_vec[1]
-    η = 0.1*t
+    η = 0.2*t
     n_lanczos_vec = 200
     Nk = 80
     NΩ = 1000
@@ -109,11 +111,13 @@ function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
 
     H = Fermion.calc_extHubbard_model(system_para, basis)
     for m in 1:Nk
-        q = (m-1)/(Nk-1)*g1
+        q = (m-1)/(Nk-1)*[1pi;0;0]
         Spectrum.calc_dynamical_structure_factor(m, q, Egs, φgs, H, system_para, DSF_para, basis)
     end
+
     sns.set_palette("hsv",Nk)
     for i in 1:Nk
+        b = [i*0.5 for j in 1:NΩ]
         plt.plot(Ω, -1.0/pi*imag(G[i,:]),label=string(i))
         plt.legend(loc="best")
     end
@@ -124,16 +128,17 @@ end
 function test()
     # 格子モデルの作成
     #link_mat, link_list, pos = Model.square_lattice(Nx, Ny)
-    link_mat, link_list, pos, Nxyz = Model.read_model("1d_extHubbard.txt")
+    link_mat, link_list, pos, system_size = Model.read_model("1d_extHubbard.txt")
     unit_vec = Model.get_square_lattice_unit_vec()
 
-    ns = Nxyz[1]
-    Nx = Nxyz[2]
-    Ny = Nxyz[3]
-    Nz = Nxyz[4]
-    Ns = ns*Nx*Ny*Nz
+    ns = system_size[1]
+    Nx = system_size[2]
+    Ny = system_size[3]
+    Nz = system_size[4]
+    Ns = system_size[5]
     # 電子数
     Ne = Ns
+    println(typeof(Nx))
 
     # 逆格子ベクトル
     V = dot(unit_vec[1], cross(unit_vec[2], unit_vec[3]))
@@ -142,10 +147,10 @@ function test()
     g3 = 2.0*pi*cross(unit_vec[1], unit_vec[2])/V
     g = [g1, g2, g3]
 
-    system_para = Parameter.Model_para(ns, Nx, Ny, Ns, Ne, unit_vec, g, link_mat, link_list, pos)
+    system_para = Parameter.System_para(ns, Nx, Ny, Nz, Ns, Ne, unit_vec, g, link_mat, link_list, pos)
     Model.show_links(link_mat)
 
-    # 電子数とtotSzの保存した基底を作成
+    # 電子数=Ne,totSz=0の基底を作成
     basis = Fermion.make_n_basis(Ns, Ne)
     nupspin = div(Ne, 2)
     ndownspin = Ne - nupspin
@@ -185,8 +190,6 @@ function test()
     #main_spectral_func(Egs, φgs, system_para, basis)
     main_RIXS(Egs, φgs, system_para, basis)
     main_dynamical_structure_factor(Egs, φgs, system_para, basis)
-
-   
 
     #sns.set_style("white")
     #plt.figure(figsize=(10, 8))

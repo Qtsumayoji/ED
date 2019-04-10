@@ -109,13 +109,14 @@ module Spectrum
             G[m, i] = 2.0*norm2_φex/A
         end
 
+        # Δω=0 のRIXS強度の最大値からローレンチアンを作りなおして引き算
         a = 1.0/π*imag(G[m, 1])
-        elas = [a*η^2.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
-        G[m,:] -= im*pi*elas
+        elas = pi*a*η^2.0*[1.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
+        G[m,:] -= im*elas
     end
 
     # m:Gの波数のindex
-    function calc_REXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
+    function calc_RIXS_spectrum_dense(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
         Ns = system_para.Ns 
         Ne = system_para.Ne 
         pos = system_para.pos
@@ -133,26 +134,30 @@ module Spectrum
 
         dim = length(φgs)
         φex = zeros(Complex, dim)
+        H_RIXS = zeros(Complex, dim, dim)
 
         z = Diagonal([Egs + ωin + im*Γ for i in 1:dim])
         for id in 1:Ns
             r = pos[id]
-            H1s3d = H + Fermion.calc_H1s3d_for_indirect_RIXS(id, Vd, system_para, basis)
-            φex += exp(im*q'*r)*Krylov.BiCGSTAB(H1s3d - z, φgs, maxite = 200, ϵ = 1e-6)
+            H1s3d = Fermion.calc_H1s3d_for_indirect_RIXS(id, Vd, system_para, basis)
+            H_RIXS .= H + H1s3d
+            φex += exp(im*q'*r)*inv(H_RIXS - z)*φgs
         end
         
-        norm2_φex = φex'*φex
-        φex /= norm(φex)
-        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
+        H_RIXS .= H
         for i in 1:NΩ
             ω = Ω[i]
             z = Egs + ω + im*η
-            A = -calc_continued_fraction_expansion(z, α, β)
+            z = Diagonal([Egs + ω + im*η for i in 1:dim])
             # 2 = spin
-            G[m, i] = 2.0*norm2_φex/A
+            G[m, i] = 2.0*φex'*inv(H_RIXS - z)*φex
         end
-    end
 
+        # Δω=0 のRIXS強度の最大値からローレンチアンを作りなおして引き算
+        a = 1.0/π*imag(G[m, 1])
+        elas = pi*a*η^2.0*[1.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
+        G[m,:] -= im*elas
+    end
 
     # m:Gの波数のindex
     function calc_XAS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
@@ -221,7 +226,9 @@ module Spectrum
             A = calc_continued_fraction_expansion(z, α, β)
             G[m, i] = norm2_x/A
         end
-
+        a = 1.0/π*imag(G[m, 1])
+        elas = pi*a*η^2.0*[1.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
+        G[m,:] -= im*elas
     end
 
     function calc_1d_spectral_func(Egs, φgs, H_para, system_para, spectral_func_para, basis)
