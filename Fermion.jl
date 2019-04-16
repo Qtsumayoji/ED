@@ -320,7 +320,7 @@ module Fermion
         return H_mat
     end
 
-    function calc_3band_dp_model(H_para, system_para, basis)
+    function calc_3band_dp_model(system_para, basis)
         println("dim = ", length(basis))
         
         Ns = system_para.Ns
@@ -342,11 +342,9 @@ module Fermion
                     #　neighbor = link[2]
                     para = link[3]
                     t = para[1]
-                    V = para[2]
                     #println(para)
 
                     calc_Hkij(i, j, Ns, state, t, row, col, val, reverse_basis)
-                    diag += V*ninj(i, j, Ns, state)
                 end
             end
 

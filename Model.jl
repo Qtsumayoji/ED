@@ -9,9 +9,10 @@ module Model
         for i in 1:Ns
             for j in 1:Ns
                 if link_mat[i][j] != []
-                    print(1, " ")
+                    print("* ")
+                    #print(j," ")
                 else
-                    print(0, " ")
+                    print("  ")
                 end
             end
             println("(",i," site)")
@@ -79,11 +80,14 @@ module Model
 
         link_mat = [[[] for i in 1:Ns] for i in 1:Ns]
         for line in eachline(fp)
+            if line == ""
+                continue
+            end
             str = split(line, " ")
             # はじめの2つはsite_i,site_j
             i_site = parse(Int64, str[1])
             j_site = parse(Int64, str[2])
-            # 3つめn次近接を識別するパラメータ
+            # 3つめはn次近接を識別するパラメータ
             push!(link_mat[i_site][j_site], parse(Int64, str[3]))
             for a in str[4:end]
                 push!(link_mat[i_site][j_site], parse(Float64, a))

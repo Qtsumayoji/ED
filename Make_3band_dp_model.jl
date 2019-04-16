@@ -24,11 +24,11 @@ function main()
     tpp = 0.5*(ppσ - ppπ)
     tdp = sqrt(3.0)/2.0*pdσ
 
-    Hdp = [1;tdp]
-    Hpp = [2;tpp]
-    Hp  = [3;Upp;Δ]
-    Hd  = [4;Udd]
-    Hdd = [5;J]
+    Hdp = Any[1;tdp]
+    Hpp = Any[2;tpp]
+    Hp  = Any[3;Upp;Δ]
+    Hd  = Any[4;Udd;0.0]
+    Hdd = Any[5;J]
 
     # corner_sharing_unitt_cell
     nunit = 2
@@ -48,16 +48,16 @@ function main()
     write(fp, "Ns="*string(Ns)*"\n")
 
     for i in 1:nunit
-        write(fp, string((i - 1)*4 + 1)*" "*string(Opx_1[1])*" "*string(Opx_1[2])*"\n")
-        write(fp, string((i - 1)*4 + 2)*" "*string(Opy_2[1])*" "*string(Opy_2[2])*"\n")
-        write(fp, string((i - 1)*4 + 3)*" "*string(Cux2y2_3[1])*" "*string(Cux2y2_3[2])*"\n")
-        write(fp, string((i - 1)*4 + 4)*" "*string(Opy_4[1])*" "*string(Opy_4[2])*"\n")
+        write(fp, string((i - 1)*4 + 1)*" "*string(Opx_1[1])*" "*string(Opx_1[2])*" 0\n")
+        write(fp, string((i - 1)*4 + 2)*" "*string(Opy_2[1])*" "*string(Opy_2[2])*" 0\n")
+        write(fp, string((i - 1)*4 + 3)*" "*string(Cux2y2_3[1])*" "*string(Cux2y2_3[2])*" 0\n")
+        write(fp, string((i - 1)*4 + 4)*" "*string(Opy_4[1])*" "*string(Opy_4[2])*" 0\n")
         Opx_1    += vx
         Opy_2    += vx
         Cux2y2_3 += vx
         Opy_4    += vx
         if i == nunit
-            write(fp, string(i*4 + 1)*" "*string(Opx_1[1])*" "*string(Opx_1[2])*"\n")            
+            write(fp, string(i*4 + 1)*" "*string(Opx_1[1])*" "*string(Opx_1[2])*" 0\n")            
         end
     end
 
@@ -72,27 +72,32 @@ function main()
             site7 = 3
         end
 
-        write(fp,string(site1)*" "*string(site1)*" "*string(Hp[1])*" "*string(Hp[2])*"\n")
+        write(fp,string(site1)*" "*string(site1)*" "*string(Hp[1])*" "*string(Hp[2])*" "*string(Hp[3])*"\n")
         write(fp,string(site1)*" "*string(site2)*" "*string(Hpp[1])*" "*string(-Hpp[2])*"\n")
         write(fp,string(site1)*" "*string(site3)*" "*string(Hdp[1])*" "*string(-Hdp[2])*"\n")
         write(fp,string(site1)*" "*string(site4)*" "*string(Hpp[1])*" "*string(+Hpp[2])*"\n")
 
-        write(fp,string(site2)*" "*string(site2)*" "*string(Hp[1])*" "*string(Hp[2])*"\n")
+        write(fp,string(site2)*" "*string(site2)*" "*string(Hp[1])*" "*string(Hp[2])*" "*string(Hp[3])*"\n")
         write(fp,string(site2)*" "*string(site1)*" "*string(Hpp[1])*" "*string(-Hpp[2])*"\n")
         write(fp,string(site2)*" "*string(site3)*" "*string(Hdp[1])*" "*string(+Hdp[2])*"\n")
         write(fp,string(site2)*" "*string(site5)*" "*string(Hpp[1])*" "*string(+Hpp[2])*"\n")
 
-        write(fp,string(site3)*" "*string(site3)*" "*string(Hd[1])*" "*string(Hd[2])*"\n")
+        write(fp,string(site3)*" "*string(site3)*" "*string(Hd[1])*" "*string(Hd[2])*" "*string(Hd[3])*"\n")
         write(fp,string(site3)*" "*string(site1)*" "*string(Hdp[1])*" "*string(-Hdp[2])*"\n")
         write(fp,string(site3)*" "*string(site2)*" "*string(Hdp[1])*" "*string(+Hdp[2])*"\n")
         write(fp,string(site3)*" "*string(site4)*" "*string(Hdp[1])*" "*string(-Hdp[2])*"\n")
         write(fp,string(site3)*" "*string(site5)*" "*string(Hdp[1])*" "*string(+Hdp[2])*"\n")
         write(fp,string(site3)*" "*string(site7)*" "*string(Hdd[1])*" "*string(Hdd[2])*"\n")
 
-        write(fp,string(site4)*" "*string(site4)*" "*string(Hp[1])*" "*string(Hp[2])*"\n")
+        write(fp,string(site4)*" "*string(site4)*" "*string(Hp[1])*" "*string(Hp[2])*" "*string(Hp[3])*"\n")
         write(fp,string(site4)*" "*string(site1)*" "*string(Hpp[1])*" "*string(+Hpp[2])*"\n")
         write(fp,string(site4)*" "*string(site3)*" "*string(Hdp[1])*" "*string(-Hdp[2])*"\n")
         write(fp,string(site4)*" "*string(site5)*" "*string(Hpp[1])*" "*string(-Hpp[2])*"\n")
+
+        write(fp,string(site5)*" "*string(site5)*" "*string(Hp[1])*" "*string(Hp[2])*" "*string(Hp[3])*"\n")
+        write(fp,string(site5)*" "*string(site2)*" "*string(Hpp[1])*" "*string(-Hpp[2])*"\n")
+        write(fp,string(site5)*" "*string(site3)*" "*string(Hdp[1])*" "*string(-Hdp[2])*"\n")
+        write(fp,string(site5)*" "*string(site4)*" "*string(Hpp[1])*" "*string(+Hpp[2])*"\n")
     end
 
 end

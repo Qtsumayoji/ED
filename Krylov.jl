@@ -360,7 +360,7 @@ module Krylov
         get_random_vector(dim, φ)
     
         for ite in 1:maxite
-            x = BiCGSTAB(G, φ, maxite = 200, ϵ = ϵ_cg)
+            x = CG(G, φ, maxite = 200, ϵ = ϵ_cg)
             x /= norm(x)
 
             # ΔE = <x'|A|x'> - σ = σ' - σ

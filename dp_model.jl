@@ -11,16 +11,11 @@ include("./Krylov.jl")
 include("./Fermion.jl")
 include("./Spectrum.jl")
 include("./Parameter.jl")
-include("./Make_singleband_Hubbard.jl")
+
 #BLAS.set_num_threads(2)
 
 t = 1.0
-t2 = 0.0#-0.35
-U = 10*t
-V = 1.5
-μ = 0.0
-
-Make_singleband_Hubbard.main(t, t2, U, V, μ)
+U = 10.0*t
 
 function plot_spectra(system_para, Nk, NΩ, Ω, G)
     g = system_para.reciprocal_lattice_vec
@@ -56,42 +51,38 @@ function main_spectral_func(Egs, φgs, system_para, basis)
     n_lanczos_vec = 200
     Nk = system_para.Ns
     NΩ = 1000
-    Ω = range(-12, stop=12, length=NΩ)
+    Ω = range(-2U, stop=2U, length=NΩ)
     G = zeros(Complex, Nk, NΩ)
     spectral_func_para = Parameter.Spectral_func_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
-
+    
     for m in 1:Nk
         q = (m-1)*g1/Nk
         Spectrum.calc_spectral_func(m, q, Egs, φgs, system_para, spectral_func_para, basis)
     end
-
     plot_spectra(system_para, Nk, NΩ, Ω, G)
 end
 
 function main_RIXS(Egs, φgs, system_para, basis)
-    g = system_para.reciprocal_lattice_vec
-    g1 = g[1]
     Vd = 15.0*t
     η = 0.2*t
     Γ = t
     n_lanczos_vec = 200
     # 入射光の振動数
     ωin = -14.0*t
-    
-    Ns = system_para.Ns
     NΩ = 1000
     # ωin - ωout
     Ω = range(0.0, stop=15.0, length=NΩ)
+    #Ω = range(-25.0, stop=-10, length=NΩ)
     # x-ray の運動量変化
-    NQ = system_para.Ns + 1
-    Q = zeros(NQ)
+    NQ = 8
+    Q = range(0.0, stop=pi, length=NQ)
     G = zeros(Complex, NQ, NΩ)
     RIXS_para = Parameter.RIXS_para(Vd, η, Γ, n_lanczos_vec, ωin, NΩ, Ω, NQ, Q, G)
     
-    H = @time Fermion.calc_extHubbard_model(system_para, basis)
+    H = @time Fermion.calc_3band_dp_model(system_para, basis)
     @time for m in 1:NQ
         # 外場の波数
-        q = (m-1)/Ns*g1 - g1/2
+        q = (m-1)/(NQ-1)*[pi;0;0]
        @time Spectrum.calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
     end
 
@@ -118,7 +109,7 @@ function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     G = zeros(Complex, Nk, NΩ)
     DSF_para = Parameter.Dynamical_structure_factor_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
 
-    H = Fermion.calc_extHubbard_model(system_para, basis)
+    H = Fermion.calc_3band_dp_model(system_para, basis)
     for m in 1:Nk
         q = (m-1)/(Nk-1)*[1pi;0;0]
         Spectrum.calc_dynamical_structure_factor(m, q, Egs, φgs, H, system_para, DSF_para, basis)
@@ -134,10 +125,10 @@ function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     plot_spectra(system_para, Nk, NΩ, Ω, G)
 end
 
-function Hubbard_model()
+function dp_model()
     # 格子モデルの作成
     #link_mat, link_list, pos = Model.square_lattice(Nx, Ny)
-    input_file = "1d_extHubbard.txt"
+    input_file = "corner_sharing_dp.txt"
     link_mat, link_list, pos, system_size = Model.read_model(input_file)
     unit_vec = Model.get_square_lattice_unit_vec()
 
@@ -166,9 +157,9 @@ function Hubbard_model()
     basis = Fermion.make_s_basis(Ns, nupspin, ndownspin, basis)
     dim = length(basis)
 
-    println("calc_Hubbard_model...")
+    println("calc_3band_dp_model...")
     #H = @time Fermion.calc_Hubbard_model(H_para, system_para, basis)
-    H = Fermion.calc_extHubbard_model(system_para, basis)
+    H = Fermion.calc_3band_dp_model(system_para, basis)
 
     println("Diagonalization...")
     E, tri = @time Krylov.lanczos(H, minite=200, maxite=3000, ϵ=1E-10, nev=1)
@@ -183,27 +174,15 @@ function Hubbard_model()
     φgs = @time Krylov.inverse_iteration(H, Egs, maxite=2000, ϵ_inv=1E-10, ϵ_cg=1E-7)
     φgs /= norm(φgs)
 
-    # <niσ>
-    #for i in 1:Ns
-    #    φ = zeros(dim)
-    #    for j in 1:dim
-    #        state = basis[j]
-    #        φ[j] = Fermion.number_op(i, Ns, state)*φgs[j]
-    #    end
-    #    println("<n",i,">=",φgs'*φ)
-    #end
-
     #println("calc_charge_correlation_func")
     #@time Fermion.calc_charge_correlation_func(φgs, system_para, basis)
 
     #main_spectral_func(Egs, φgs, system_para, basis)
+    #main_RIXS(Egs, φgs, system_para, basis)
     #plt.show()
 
-    main_RIXS(Egs, φgs, system_para, basis)
+    main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     plt.show()
-
-    #main_dynamical_structure_factor(Egs, φgs, system_para, basis)
-    #plt.show()
 
     #sns.set_style("white")
     #plt.figure(figsize=(10, 8))
@@ -214,4 +193,4 @@ function Hubbard_model()
     #plt.show()
 end
 
-Hubbard_model()
+dp_model()
