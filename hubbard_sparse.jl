@@ -196,11 +196,11 @@ function Hubbard_model()
     #println("calc_charge_correlation_func")
     #@time Fermion.calc_charge_correlation_func(φgs, system_para, basis)
 
-    #main_spectral_func(Egs, φgs, system_para, basis)
-    #plt.show()
-
-    main_RIXS(Egs, φgs, system_para, basis)
+    main_spectral_func(Egs, φgs, system_para, basis)
     plt.show()
+
+    #main_RIXS(Egs, φgs, system_para, basis)
+    #plt.show()
 
     #main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     #plt.show()
