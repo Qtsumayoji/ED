@@ -84,15 +84,27 @@ module Model
                 continue
             end
             str = split(line, " ")
-            # はじめの2つはsite_i,site_j
-            i_site = parse(Int64, str[1])
-            j_site = parse(Int64, str[2])
-            # 3つめはn次近接を識別するパラメータ
-            push!(link_mat[i_site][j_site], parse(Int64, str[3]))
-            for a in str[4:end]
-                push!(link_mat[i_site][j_site], parse(Float64, a))
+
+            is_valid_para = false
+            for para in str[4:end]
+                n = parse(Float64, para)
+                if n != 0.0
+                    is_valid_para = true
+                end
             end
-            #println(i_site," ",j_site," ",link_mat[i_site][j_site])
+
+            if is_valid_para
+                # はじめの2つはsite_i,site_j
+                i_site = parse(Int64, str[1])
+                j_site = parse(Int64, str[2])
+
+                # 3つめはn次近接を識別するパラメータlink_mat
+                push!(link_mat[i_site][j_site], parse(Int64, str[3]))
+                for a in str[4:end]
+                    push!(link_mat[i_site][j_site], parse(Float64, a))
+                end
+                #println(i_site," ",j_site," ",link_mat[i_site][j_site])
+            end
         end
         show_links(link_mat)
 
