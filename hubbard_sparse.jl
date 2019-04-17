@@ -1,10 +1,7 @@
 using LinearAlgebra
 using SparseArrays
 using Distributions
-using PyCall
-
-@pyimport matplotlib.pyplot as plt
-@pyimport seaborn as sns
+using PyPlot
 
 include("./Model.jl")
 include("./Krylov.jl")
@@ -35,18 +32,18 @@ function plot_spectra(system_para, Nk, NΩ, Ω, G)
         end
     end
 
-    plt.figure(figsize=(10,8))
-    plt.pcolormesh(X, Y, -1.0/pi*imag(G))
-    plt.colorbar()
+    PyPlot.figure(figsize=(10,8))
+    PyPlot.pcolormesh(X, Y, -1.0/pi*imag(G))
+    PyPlot.colorbar()
 
-    plt.figure(figsize=(10,8))
+    PyPlot.figure(figsize=(10,8))
     Iω = zeros(NΩ)
     for i in 1:NΩ
         for m in 1:Nk
             Iω[i] += -1.0/pi*imag(G[m, i])
         end
     end
-    plt.plot(Ω, Iω)
+    PyPlot.plot(Ω, Iω)
 end
 
 function main_spectral_func(Egs, φgs, system_para, basis)
@@ -61,7 +58,7 @@ function main_spectral_func(Egs, φgs, system_para, basis)
     spectral_func_para = Parameter.Spectral_func_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
 
     for m in 1:Nk
-        q = (m-1)*g1/Nk
+        q = (m-1)/Nk*g1 - g1/2
         Spectrum.calc_spectral_func(m, q, Egs, φgs, system_para, spectral_func_para, basis)
     end
 
@@ -95,14 +92,14 @@ function main_RIXS(Egs, φgs, system_para, basis)
        @time Spectrum.calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
     end
 
-    #plt.subplot()
-    plt.figure(figsize=(10,8))
+    #PyPlot.subplot()
+    PyPlot.figure(figsize=(10,8))
     sns.set_palette("hsv",NQ)
     for i in 1:NQ
         b = [i*0.5 for j in 1:NΩ]
         Intensity = 1.0/π*imag(G[i, :]) + b
-        plt.plot(Ω, Intensity,label=string(i))
-        plt.legend(loc="best")
+        PyPlot.plot(Ω, Intensity,label=string(i))
+        PyPlot.legend(loc="best")
     end
     plot_spectra(system_para, NQ, NΩ, Ω, -G)
 end
@@ -127,8 +124,8 @@ function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     sns.set_palette("hsv",Nk)
     for i in 1:Nk
         b = [i*0.5 for j in 1:NΩ]
-        plt.plot(Ω, -1.0/pi*imag(G[i,:]),label=string(i))
-        plt.legend(loc="best")
+        PyPlot.plot(Ω, -1.0/pi*imag(G[i,:]),label=string(i))
+        PyPlot.legend(loc="best")
     end
 
     plot_spectra(system_para, Nk, NΩ, Ω, G)
@@ -197,21 +194,21 @@ function Hubbard_model()
     #@time Fermion.calc_charge_correlation_func(φgs, system_para, basis)
 
     main_spectral_func(Egs, φgs, system_para, basis)
-    plt.show()
+    PyPlot.show()
 
     #main_RIXS(Egs, φgs, system_para, basis)
-    #plt.show()
+    #PyPlot.show()
 
     #main_dynamical_structure_factor(Egs, φgs, system_para, basis)
-    #plt.show()
+    #PyPlot.show()
 
     #sns.set_style("white")
-    #plt.figure(figsize=(10, 8))
-    #plt.subplot(211)
-    #@time plt.plot(1:length(E), E)
-    #plt.subplot(212)
-    #@time plt.hist(E, bins = 200)
-    #plt.show()
+    #PyPlot.figure(figsize=(10, 8))
+    #PyPlot.subplot(211)
+    #@time PyPlot.plot(1:length(E), E)
+    #PyPlot.subplot(212)
+    #@time PyPlot.hist(E, bins = 200)
+    #PyPlot.show()
 end
 
 Hubbard_model()
