@@ -5,7 +5,7 @@ module Make_singleband_Hubbard
         filename = "1d_extHubbard.txt"
         # 単位胞あたりのサイト数
         ns = 1
-        Nx = 6
+        Nx = 8
         Ny = 1
         Ns = ns*Nx*Ny
         ax = 1.0
