@@ -231,7 +231,9 @@ module Krylov
 
     function BiCGSTAB(A::SparseMatrixCSC{Float64, Int64}, b; maxite = 1000, ϵ = 1E-5)
         println("maxite=",maxite," ϵ=",ϵ)
+
         dim = length(b)
+
         x = zeros(Float64, dim)
         r1 = zeros(Float64, dim)
         r2 = zeros(Float64, dim)
@@ -239,6 +241,7 @@ module Krylov
         v = zeros(Float64, dim)
         s = zeros(Float64, dim)
         t = zeros(Float64, dim)
+        
         x *= 0.0
         r1 .= b - A*x
         r2 .= r1
@@ -289,7 +292,9 @@ module Krylov
 
     function BiCGSTAB(A::SparseMatrixCSC{Complex{Float64}, Int64}, b; maxite = 1000, ϵ = 1E-5)
         println("maxite=",maxite," ϵ=",ϵ)
+
         dim = length(b)
+
         x = zeros(Complex, dim)
         r1 = zeros(Complex, dim)
         r2 = zeros(Complex, dim)
@@ -297,6 +302,7 @@ module Krylov
         v = zeros(Complex, dim)
         s = zeros(Complex, dim)
         t = zeros(Complex, dim)
+
         x *= 0.0
         r1 .= b - A*x
         r2 .= r1
@@ -327,6 +333,69 @@ module Krylov
                 return x
             else
                 t = A*s
+                ω = t'*s/(t'*t)
+                x += α*p + ω*s
+                r1 .= s - ω*t
+
+                if ω == 0.0
+                    println("*****CONVERGED*****")
+                    println("BiCGSTAB numite = ", i)
+                    return x
+                end
+                ρ2 = ρ1
+            end
+        end
+
+        println("residual = ",norm(s))
+        println("*****FAILED******")
+        return x
+    end
+
+    function BiCGSTAB_mod(A1::SparseMatrixCSC{Float64, Int64}, A2, b; maxite = 1000, ϵ = 1E-5)
+        println("maxite=",maxite," ϵ=",ϵ)
+
+        dim = length(b)
+
+        x = zeros(Complex, dim)
+        r1 = zeros(Complex, dim)
+        r2 = zeros(Complex, dim)
+        p = zeros(Complex, dim)
+        v = zeros(Complex, dim)
+        s = zeros(Complex, dim)
+        t = zeros(Complex, dim)
+
+        x *= 0.0
+        r1 .= b - (A1*real(x) - A2*imag(x) + im*(A1*imag(x) + A2*real(x)))
+        r2 .= r1
+
+        α  = 0.0 + im*0.0
+        ρ1 = 0.0 + im*0.0
+        ρ2 = 0.0 + im*0.0
+        ω  = 0.0 + im*0.0
+
+        for i in 1:maxite
+            ρ1 = r2'*r1
+            
+            if i == 1
+                p .= r1
+            else
+                β = (ρ1/ρ2)*(α/ω) 
+                p .= r1 + β*(p - ω*v)
+            end
+
+            # v = A*p
+            v = A1*real(p) - A2*imag(p) + im*(A1*imag(p) + A2*real(p))
+            α = ρ1/(r2'*v)
+            s .= r1 - α*v
+
+            if norm(s) < ϵ
+                println("*****CONVERGED*****")
+                println("BiCGSTAB numite = ", i)
+                x += α*p
+                return x
+            else
+                # t = A*s
+                t = A1*real(s) - A2*imag(s) + im*(A1*imag(s) + A2*real(s))
                 ω = t'*s/(t'*t)
                 x += α*p + ω*s
                 r1 .= s - ω*t
