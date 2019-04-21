@@ -2,6 +2,8 @@ using LinearAlgebra
 using SparseArrays
 using Distributions
 using PyPlot
+using PyCall
+@pyimport seaborn as sns
 
 include("./Model.jl")
 include("./Krylov.jl")
@@ -9,41 +11,51 @@ include("./Fermion.jl")
 include("./Spectrum.jl")
 include("./Parameter.jl")
 include("./Make_singleband_Hubbard.jl")
+
+PyPlot.rc("font",family ="Times New Roman")
+
 #BLAS.set_num_threads(2)
 
 t = 1.0
-t2 = 0.0#-0.35
+t2 = -0.34
 U = 10*t
 V = 1.5
-μ = 0.0
+μ = U/2.0
 
 Make_singleband_Hubbard.main(t, t2, U, V, μ)
 
-function plot_spectra(system_para, Nk, NΩ, Ω, G)
-    g = system_para.reciprocal_lattice_vec
-    g1 = g[1]
-
-    X = zeros(Nk + 1, NΩ)
-    Y = zeros(Nk + 1, NΩ)
-    for i in 1:NΩ
+function plot_spectra(Nk, K, NΩ, Ω, G)
+    X = zeros(Nk + 1, NΩ + 1)
+    Y = zeros(Nk + 1, NΩ + 1)
+    ΔX = K[2] - K[1]
+    ΔY = Ω[2] - Ω[1]
+    for i in 1:NΩ + 1
         for m in 1:Nk + 1
-            X[m, i] = m - 1.5#(m-1)/Ns*g1[1] - 1/Ns*g1[1]/2
-            Y[m, i] = Ω[i]
+            X[m, i] = K[1] + (m - 1.5)*ΔX
+            Y[m, i] = Ω[1] + (i - 1.5)*ΔY
         end
     end
 
-    PyPlot.figure(figsize=(10,8))
-    PyPlot.pcolormesh(X, Y, -1.0/pi*imag(G))
+    PyPlot.figure(figsize=(8,6))
+    PyPlot.pcolormesh(X, Y, -1.0/pi*imag(G),cmap="magma")
     PyPlot.colorbar()
+    PyPlot.xlabel("k", size=20)
+    PyPlot.ylabel("ω", size=20)
+    PyPlot.tight_layout()
 
-    PyPlot.figure(figsize=(10,8))
+
     Iω = zeros(NΩ)
     for i in 1:NΩ
-        for m in 1:Nk
+        # B.Zの両端の波数をカラープロットで見ているので片側を省くための-1
+        for m in 1:Nk - 1
             Iω[i] += -1.0/pi*imag(G[m, i])
         end
     end
-    PyPlot.plot(Ω, Iω)
+    PyPlot.figure(figsize=(8,6))
+    PyPlot.xlabel("Energy", size=20)
+    PyPlot.ylabel("Intensity", size=20)
+    PyPlot.tight_layout()
+    PyPlot.plot(Ω, Iω, c="black")
 end
 
 function main_spectral_func(Egs, φgs, system_para, basis)
@@ -51,18 +63,21 @@ function main_spectral_func(Egs, φgs, system_para, basis)
     g1 = system_para.reciprocal_lattice_vec[1]
     η = 0.1*t
     n_lanczos_vec = 200
-    Nk = system_para.Ns
+    Ns = system_para.Ns
+    Nk = Ns + 1
+    K = zeros(Nk)
     NΩ = 1000
     Ω = range(-12, stop=12, length=NΩ)
     G = zeros(Complex, Nk, NΩ)
     spectral_func_para = Parameter.Spectral_func_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
 
-    for m in 1:Nk
-        q = (m-1)/Nk*g1 - g1/2
+    @time for m in 1:Nk
+        q = (m-1)/Ns*g1 - g1/2
+        K[m] = q[1]
         Spectrum.calc_spectral_func(m, q, Egs, φgs, system_para, spectral_func_para, basis)
     end
 
-    plot_spectra(system_para, Nk, NΩ, Ω, G)
+    plot_spectra(Nk, K, NΩ, Ω, G)
 end
 
 function main_RIXS(Egs, φgs, system_para, basis)
@@ -89,35 +104,40 @@ function main_RIXS(Egs, φgs, system_para, basis)
     @time for m in 1:NQ
         # 外場の波数
         q = (m-1)/Ns*g1 - g1/2
+        Q[m] = q[1]
        @time Spectrum.calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
     end
 
     #PyPlot.subplot()
-    PyPlot.figure(figsize=(10,8))
-    sns.set_palette("hsv",NQ)
-    for i in 1:NQ
+    PyPlot.figure(figsize=(8,6))
+    sns.set_palette("hsv", div(Ns,2) + 1)
+    start_k_ind = div(NQ, 2) + 1 
+    end_k_ind = NQ
+    for i in start_k_ind:end_k_ind
         b = [i*0.5 for j in 1:NΩ]
         Intensity = 1.0/π*imag(G[i, :]) + b
         PyPlot.plot(Ω, Intensity,label=string(i))
+        PyPlot.tight_layout()
         PyPlot.legend(loc="best")
     end
-    plot_spectra(system_para, NQ, NΩ, Ω, -G)
+    plot_spectra(NQ, Q, NΩ, Ω, -G)
 end
 
 function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
-    println("calc_dynamical_structure_factor")
     g1 = system_para.reciprocal_lattice_vec[1]
     η = 0.2*t
     n_lanczos_vec = 200
-    Nk = 80
+    Ns = 10*system_para.Ns
+    Nk = Ns + 1
+    K = zeros(Nk)
     NΩ = 1000
     Ω = range(0.0, stop=15.0, length=NΩ)
     G = zeros(Complex, Nk, NΩ)
     DSF_para = Parameter.Dynamical_structure_factor_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
 
     H = Fermion.calc_extHubbard_model(system_para, basis)
-    for m in 1:Nk
-        q = (m-1)/(Nk-1)*[1pi;0;0]
+    @time for m in 1:Nk
+        q = (m-1)/Ns*g1 - g1/2
         Spectrum.calc_dynamical_structure_factor(m, q, Egs, φgs, H, system_para, DSF_para, basis)
     end
 
@@ -128,7 +148,7 @@ function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
         PyPlot.legend(loc="best")
     end
 
-    plot_spectra(system_para, Nk, NΩ, Ω, G)
+    plot_spectra(Nk, K, NΩ, Ω, G)
 end
 
 function Hubbard_model()
@@ -180,34 +200,13 @@ function Hubbard_model()
     φgs = @time Krylov.inverse_iteration(H, Egs, maxite=2000, ϵ_inv=1E-10, ϵ_cg=1E-7)
     φgs /= norm(φgs)
 
-    # <niσ>
-    #for i in 1:Ns
-    #    φ = zeros(dim)
-    #    for j in 1:dim
-    #        state = basis[j]
-    #        φ[j] = Fermion.number_op(i, Ns, state)*φgs[j]
-    #    end
-    #    println("<n",i,">=",φgs'*φ)
-    #end
+    #main_spectral_func(Egs, φgs, system_para, basis)
+    #PyPlot.show()
 
-    #println("calc_charge_correlation_func")
-    #@time Fermion.calc_charge_correlation_func(φgs, system_para, basis)
-
-    main_spectral_func(Egs, φgs, system_para, basis)
+    main_RIXS(Egs, φgs, system_para, basis)
     PyPlot.show()
 
-    #main_RIXS(Egs, φgs, system_para, basis)
-    #PyPlot.show()
-
     #main_dynamical_structure_factor(Egs, φgs, system_para, basis)
-    #PyPlot.show()
-
-    #sns.set_style("white")
-    #PyPlot.figure(figsize=(10, 8))
-    #PyPlot.subplot(211)
-    #@time PyPlot.plot(1:length(E), E)
-    #PyPlot.subplot(212)
-    #@time PyPlot.hist(E, bins = 200)
     #PyPlot.show()
 end
 
