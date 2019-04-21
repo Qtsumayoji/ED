@@ -34,7 +34,7 @@ module Fermion
 
     # Ns:格子数
     # ndown,nup: down/up spin の数
-    function make_s_basis(Ns, ndown, nup, basis)
+    function make_s_basis(Ns, nup, ndown, basis)
         sbasis = Int64[]
         for base in basis
             if count_ones(base & bitfrag[Ns]) == ndown
@@ -462,6 +462,21 @@ module Fermion
         sns.heatmap(Cq, cmap="magma")
         plt.show()
         return CCF, Cq
+    end
+
+    function calc_ci_state(φ, i, Ns, Ne, basis, basis_Np)
+        reverse_basis = make_reverse_basis(basis)
+        reverse_basis_Nm = make_reverse_basis(basis_Np)
+        ϕ = zeros(Complex, length(basis_Np))
+
+        for state in basis
+            sign, ket = ci(i, state)
+            if ket != 0 
+                ϕ[reverse_basis_Nm[ket]] += sign*φ[reverse_basis[state]]
+            end
+        end
+
+        return ϕ
     end
     
     function calc_ai_state(φ, i, Ns, Ne, basis, basis_Nm)
