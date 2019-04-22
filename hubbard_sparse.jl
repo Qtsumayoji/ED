@@ -3,7 +3,9 @@ using SparseArrays
 using Distributions
 using PyPlot
 using PyCall
+
 @pyimport seaborn as sns
+#sns = pyimport("seaborn")
 
 include("./Model.jl")
 include("./Krylov.jl")
