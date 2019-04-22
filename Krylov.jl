@@ -1,7 +1,8 @@
 module Krylov
     using LinearAlgebra
     using SparseArrays
-    
+    using MKLSparse
+
     function lanczos(A; minite=100, maxite = 2000, ϵ = 1E-5, nev = 1)
         dim = size(A)[1]
         α_st = Float64[]
@@ -322,7 +323,8 @@ module Krylov
                 p .= r1 + β*(p - ω*v)
             end
 
-            v = A*p
+            #v = A*p
+            mul!(v, A, p)
             α = ρ1/(r2'*v)
             s .= r1 - α*v
 
@@ -332,7 +334,8 @@ module Krylov
                 x += α*p
                 return x
             else
-                t = A*s
+                #t = A*s
+                mul!(t, A, s)
                 ω = t'*s/(t'*t)
                 x += α*p + ω*s
                 r1 .= s - ω*t

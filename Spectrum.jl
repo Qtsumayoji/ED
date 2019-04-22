@@ -70,6 +70,61 @@ module Spectrum
         end
     end
 
+    # mは波数だが1 site問題なのでm=1
+    function calc_single_site_spectral_func(m, i, Egs, φgs, system_para, spectral_func_para, basis)
+        Ns = system_para.Ns
+        Ne = system_para.Ne
+        pos = system_para.pos
+        unit_vec = system_para.unit_vec
+        link_list = system_para.link_list
+
+        η = spectral_func_para.η
+        n_lanczos_vec = spectral_func_para.n_lanczos_vec
+        NΩ = spectral_func_para.NΩ
+        Ω = spectral_func_para.Ω
+        G = spectral_func_para.G
+
+        basis_Np = Fermion.make_n_basis(Ns, Ne + 1)
+        # 波数表示の生成演算子を作用させるためNe+1の部分空間でのハミルトニアンを作る
+        #H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Np)
+        H = Fermion.calc_extHubbard_model(system_para, basis_Np)
+        φex = Fermion.calc_ci_state(φgs, i, Ns, Ne, basis, basis_Np)
+
+        norm2_φex = φex'*φex
+        φex /= norm(φex)
+    
+        # 連分数展開の準備
+        # 励起状態を試行ベクトルとしてランチョスベクトルを計算
+        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
+    
+        # 各周波数について連分数展開によりG(k,ω)を計算
+        for i in 1:NΩ
+            ω = Ω[i]
+            z = ω + Egs + im*η
+            A = calc_continued_fraction_expansion(z, α, β)
+            G[m, i] += norm2_φex/A
+        end
+    
+        basis_Np = Fermion.make_n_basis(Ns, Ne - 1)
+        basis_Nm = basis_Np
+        #H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Nm)
+        H = Fermion.calc_extHubbard_model(system_para, basis_Nm)
+
+        φex = Fermion.calc_ai_state(φgs, i, Ns, Ne, basis, basis_Np)
+        norm2_φex = φex'*φex
+        φex /= norm(φex)
+        
+        # 連分数展開の準備
+        # 励起状態を試行ベクトルとしてランチョスベクトルを計算
+        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
+        for i in 1:NΩ
+            ω = Ω[i]
+            z = Egs - ω -  im*η
+            A = -calc_continued_fraction_expansion(z, α, β)
+            G[m, i] += norm2_φex/A
+        end
+    end
+
     # m:Gの波数のindex
     function calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
         Ns = system_para.Ns 
@@ -95,7 +150,8 @@ module Spectrum
             r = pos[id]
             H1s3d = Fermion.calc_H1s3d_for_indirect_RIXS(id, Vd, system_para, basis)
             H_RIXS = H + H1s3d
-            φex += exp(im*q'*r)*Krylov.BiCGSTAB(H_RIXS - z, φgs, maxite = 200, ϵ = 1e-6)
+            #φex += exp(im*q'*r)*Krylov.BiCGSTAB(H_RIXS - z, φgs, maxite = 200, ϵ = 1e-3)
+            @time φex += exp(im*q'*r)*Krylov.BiCGSTAB_mod(H_RIXS - real(z), - imag(z), φgs, maxite = 200, ϵ = 1e-3)
         end
         
         norm2_φex = φex'*φex
@@ -160,7 +216,7 @@ module Spectrum
     end
 
     # m:Gの波数のindex
-    function calc_XAS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
+    function calc_XAS_spectrum(Egs, φgs, H, system_para, RIXS_para, basis)
         Ns = system_para.Ns 
         link_list = system_para.link_list 
 
@@ -185,7 +241,7 @@ module Spectrum
                 A = -calc_continued_fraction_expansion(z, α, β)
                 # 2 = spin
                 # core-holeの相互作用にスピン依存性がないので単純に2倍する
-                G[m, i] = 2.0*norm2_φgs/A
+                G[1, i] = 2.0*norm2_φgs/A
             end
         end
     end

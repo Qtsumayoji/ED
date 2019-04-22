@@ -14,12 +14,12 @@ include("./Make_singleband_Hubbard.jl")
 
 PyPlot.rc("font",family ="Times New Roman")
 
-#BLAS.set_num_threads(2)
+BLAS.set_num_threads(4)
 
 t = 1.0
-t2 = -0.34
+t2 = 0.0#-0.34
 U = 10*t
-V = 1.5
+V = 0.0#1.5
 μ = U/2.0
 
 Make_singleband_Hubbard.main(t, t2, U, V, μ)
@@ -37,7 +37,7 @@ function plot_spectra(Nk, K, NΩ, Ω, G)
     end
 
     PyPlot.figure(figsize=(8,6))
-    PyPlot.pcolormesh(X, Y, -1.0/pi*imag(G),cmap="magma")
+    PyPlot.pcolormesh(X, Y, -1.0/pi*imag(G))
     PyPlot.colorbar()
     PyPlot.xlabel("k", size=20)
     PyPlot.ylabel("ω", size=20)
@@ -95,7 +95,7 @@ function main_RIXS(Egs, φgs, system_para, basis)
     # ωin - ωout
     Ω = range(0.0, stop=15.0, length=NΩ)
     # x-ray の運動量変化
-    NQ = system_para.Ns + 1
+    NQ = Ns + 1
     Q = zeros(NQ)
     G = zeros(Complex, NQ, NΩ)
     RIXS_para = Parameter.RIXS_para(Vd, η, Γ, n_lanczos_vec, ωin, NΩ, Ω, NQ, Q, G)
@@ -123,11 +123,37 @@ function main_RIXS(Egs, φgs, system_para, basis)
     plot_spectra(NQ, Q, NΩ, Ω, -G)
 end
 
+function main_XAS(Egs, φgs, system_para, basis)
+    g1 = system_para.reciprocal_lattice_vec[1]
+    η = 0.2*t
+    Γ = 0.05*t
+    Vd = 15.0*t
+    ωin = 0.0
+    n_lanczos_vec = 200
+    Ns = 10*system_para.Ns
+    Nk = 1
+    K = zeros(Nk)
+    NΩ = 10000
+    Ω = range(-20.0, stop=0.0, length=NΩ)
+    G = zeros(Complex, Nk, NΩ)
+    RIXS_para = Parameter.RIXS_para(Vd, η, Γ, n_lanczos_vec, ωin, NΩ, Ω, Nk, K, G)
+
+    H = Fermion.calc_extHubbard_model(system_para, basis)
+
+    Spectrum.calc_XAS_spectrum(Egs, φgs, H, system_para, RIXS_para, basis)
+
+    PyPlot.figure(figsize=(8,6))
+    PyPlot.xlabel("Energy", size=20)
+    PyPlot.ylabel("Intensity", size=20)
+    PyPlot.tight_layout()
+    PyPlot.plot(Ω, 1.0/pi*imag(G[1, :]), c="black") 
+end
+
 function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     g1 = system_para.reciprocal_lattice_vec[1]
     η = 0.2*t
     n_lanczos_vec = 200
-    Ns = 10*system_para.Ns
+    Ns = system_para.Ns
     Nk = Ns + 1
     K = zeros(Nk)
     NΩ = 1000
@@ -138,9 +164,11 @@ function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     H = Fermion.calc_extHubbard_model(system_para, basis)
     @time for m in 1:Nk
         q = (m-1)/Ns*g1 - g1/2
+        K[m] = q[1]
         Spectrum.calc_dynamical_structure_factor(m, q, Egs, φgs, H, system_para, DSF_para, basis)
     end
 
+    PyPlot.figure(figsize=(8,6))
     sns.set_palette("hsv",Nk)
     for i in 1:Nk
         b = [i*0.5 for j in 1:NΩ]
@@ -203,11 +231,14 @@ function Hubbard_model()
     #main_spectral_func(Egs, φgs, system_para, basis)
     #PyPlot.show()
 
+    #main_XAS(Egs, φgs, system_para, basis)
+    #PyPlot.show()
+
     main_RIXS(Egs, φgs, system_para, basis)
-    PyPlot.show()
+    #PyPlot.show()
 
     #main_dynamical_structure_factor(Egs, φgs, system_para, basis)
-    #PyPlot.show()
+    PyPlot.show()
 end
 
 Hubbard_model()
