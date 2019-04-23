@@ -6,6 +6,13 @@ module Fermion
     using PyCall
     @pyimport pylab as plt
     @pyimport seaborn as sns
+    
+    # 各サイトに1軌道あるとして全サイトに電子が詰まった状態は
+    # |↓↓↓↓↑↑↑↑>
+    # となるようにおいてある
+    # 電子はup spinから順に詰まっていく
+    # 右から数えてi番目のbitはi番目のサイトのup spin
+    # i+Ns番目のbitはi番目のサイトのdown spinを表す
 
     # Ns:格子数
     function make_basis(Ns::Integer)
@@ -37,8 +44,8 @@ module Fermion
     function make_s_basis(Ns, nup, ndown, basis)
         sbasis = Int64[]
         for base in basis
-            if count_ones(base & bitfrag[Ns]) == ndown
-                if count_ones(base & ~bitfrag[Ns]) == nup
+            if count_ones(base & bitflag[Ns]) == ndown
+                if count_ones(base & ~bitflag[Ns]) == nup
                     push!(sbasis, base)
                 end
             end
@@ -59,24 +66,24 @@ module Fermion
     end
 
     # fermion signの計算に使用
-    bitfrag = Array{Int64}(undef, 32)
-    for i in 1:32
-        bitfrag[i] = ~((1 << i) - 1)
+    bitflag = Array{Int64}(undef, 64)
+    for i in 1:64
+        bitflag[i] = ~((1 << i) - 1)
         #println(bits(bitfrag[i]))
     end
 
     # 右から1始まりでi番目より左の立っているbitを数える
     function calc_fermion_sign(i::Int64, state::Int64)
-        return (-1.0)^(count_ones(state & bitfrag[i]))
+        return (-1.0)^(count_ones(state & bitflag[i]))
     end
     
     function test_calc_fermion_sign()
         test1 = 21343154
         println(bits(test1))
-        println(calc_fermion_sign(4, test1)," ",count_ones(test1 & bitfrag[4]))
+        println(calc_fermion_sign(4, test1)," ",count_ones(test1 & bitflag[4]))
         test2 =122321
         println(bits(test2))
-        println(calc_fermion_sign(7, test2)," ",count_ones(test2 & bitfrag[7]))
+        println(calc_fermion_sign(7, test2)," ",count_ones(test2 & bitflag[7]))
     end
 
     # creation operator
@@ -119,6 +126,10 @@ module Fermion
         end
     end
 
+    # c_j1σ1*a_j1σ2*c_j21σ2*a_j2σ1
+    function exchange_σ1σ2σ2σ1(j1::Int64, Ns1::Int64, j2::Int64, Ns2::Int64, state::Int64)
+    end
+
     function test_ciaj()
         println(bitstring(21343154))
         sign, state = ciaj(3,5,21343154)
@@ -152,8 +163,14 @@ module Fermion
         return niσ(i, state) + niσ(i + Ns, state)
     end
 
+    # 近接サイトとのクーロン相互作用
     function ninj(i::Int64, j::Int64, Ns::Int64, state::Int64)
         return number_op(i, Ns, state)*number_op(j, Ns, state)
+    end
+
+    # 交換相互作用
+    function exchange_int(i::Int64, j::Int64, Ns::Int64, state::Int64)
+
     end
 
     function calc_Hkij(i::Int64, j::Int64, Ns::Int64, state::Int64, t::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
