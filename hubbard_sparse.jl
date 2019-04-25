@@ -1,11 +1,9 @@
 using LinearAlgebra
-using SparseArrays
-using Distributions
 using PyPlot
 using PyCall
+#import Arpack
 
-@pyimport seaborn as sns
-#sns = pyimport("seaborn")
+sns = pyimport("seaborn")
 
 include("./Model.jl")
 include("./Krylov.jl")
@@ -19,12 +17,13 @@ PyPlot.rc("font",family ="Times New Roman")
 BLAS.set_num_threads(4)
 
 t = 1.0
+t1 = -t
 t2 = 0.0#-0.34
-U = 10*t
+U = 10.0*t
 V = 0.0#1.5
-μ = U/2.0
+μ = 0.0#U/2.0
 
-Make_singleband_Hubbard.main(t, t2, U, V, μ)
+Make_singleband_Hubbard.main(t1, t2, U, V, μ)
 
 function plot_spectra(Nk, K, NΩ, Ω, G)
     X = zeros(Nk + 1, NΩ + 1)
@@ -69,7 +68,7 @@ function main_spectral_func(Egs, φgs, system_para, basis)
     Nk = Ns + 1
     K = zeros(Nk)
     NΩ = 1000
-    Ω = range(-12, stop=12, length=NΩ)
+    Ω = range(-12, stop=15, length=NΩ)
     G = zeros(Complex, Nk, NΩ)
     spectral_func_para = Parameter.Spectral_func_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
 
@@ -104,10 +103,11 @@ function main_RIXS(Egs, φgs, system_para, basis)
     
     H = @time Fermion.calc_extHubbard_model(system_para, basis)
     @time for m in 1:NQ
+        println("calc... ",m,"/",NQ)
         # 外場の波数
         q = (m-1)/Ns*g1 - g1/2
         Q[m] = q[1]
-       @time Spectrum.calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
+       @time Spectrum.calc_1s4p_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
     end
 
     #PyPlot.subplot()
@@ -194,7 +194,7 @@ function Hubbard_model()
     Nz = system_size[4]
     Ns = system_size[5]
     # 電子数
-    Ne = Ns
+    Ne = Ns - 2
 
     # 逆格子ベクトル
     V = dot(unit_vec[1], cross(unit_vec[2], unit_vec[3]))
@@ -219,18 +219,20 @@ function Hubbard_model()
 
     println("Diagonalization...")
     E, tri = @time Krylov.lanczos(H, minite=200, maxite=3000, ϵ=1E-10, nev=1)
+    #E, tri = @time Arpack.eigs(H, nev = 1, which=:SM)
     #A = zeros(dim, dim)
     #A .= H
     #H = []
     #E ,U = eigen(A)
     Egs = E[1]
+    println("Egs=",Egs)
     println("Egs/Ns=",Egs/Ns)
 
     println("inverse_iteration...")
     φgs = @time Krylov.inverse_iteration(H, Egs, maxite=2000, ϵ_inv=1E-10, ϵ_cg=1E-7)
     φgs /= norm(φgs)
 
-    #main_spectral_func(Egs, φgs, system_para, basis)
+    main_spectral_func(Egs, φgs, system_para, basis)
     #PyPlot.show()
 
     #main_XAS(Egs, φgs, system_para, basis)
