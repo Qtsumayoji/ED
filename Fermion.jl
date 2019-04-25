@@ -2,10 +2,6 @@ module Fermion
     using LinearAlgebra
     using SparseArrays
     include("./Krylov.jl")
-
-    using PyCall
-    @pyimport pylab as plt
-    @pyimport seaborn as sns
     
     # 各サイトに1軌道あるとして全サイトに電子が詰まった状態は
     # |↓↓↓↓↑↑↑↑>
@@ -126,8 +122,40 @@ module Fermion
         end
     end
 
-    # c_j1σ1*a_j1σ2*c_j21σ2*a_j2σ1
+    # c_j1σ1*a_j1σ2 * c_j2σ2*a_j2σ1
     function exchange_σ1σ2σ2σ1(j1::Int64, Ns1::Int64, j2::Int64, Ns2::Int64, state::Int64)
+        # c_j1σ1
+        if (state & (1 << (j1 + Ns1 - 1))) == 0
+            return 0, 0
+        else
+            fermion_sign = calc_fermion_sign(j1 + Ns1, state)
+            state = xor(state , (1 << (j1 + Ns1 - 1)))
+
+            # a_j1σ2
+            if (state & (1 << (j1 + Ns2 - 1))) == 0
+                fermion_sign *= calc_fermion_sign(j1 + Ns2, state)
+                state = xor(state , (1 << (j1 + Ns2 - 1)))
+                
+                # c_j2σ2
+                if (state & (1 << (j2 + Ns2 - 1))) == 0
+                    return 0, 0
+                else
+                    fermion_sign = calc_fermion_sign(j2 + Ns2, state)
+                    state = xor(state , (1 << (j2 + Ns2 - 1)))
+
+                    # a_j2σ1
+                    if (state & (1 << (j2 + Ns1 - 1))) == 0
+                        fermion_sign *= calc_fermion_sign(j2 + Ns1, state)
+                        state = xor(state , (1 << (j2 + Ns1 - 1)))
+                        return fermion_sign, state
+                    else
+                        return 0, 0
+                    end
+                end
+            else
+                return 0, 0
+            end
+        end
     end
 
     function test_ciaj()
@@ -168,18 +196,13 @@ module Fermion
         return number_op(i, Ns, state)*number_op(j, Ns, state)
     end
 
-    # 交換相互作用
-    function exchange_int(i::Int64, j::Int64, Ns::Int64, state::Int64)
-
-    end
-
     function calc_Hkij(i::Int64, j::Int64, Ns::Int64, state::Int64, t::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         # up spin
         sig, ket = ciaj(i, j, state)
         if ket != 0
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
-            push!(val, -t*sig)
+            push!(val, t*sig)
         end
 
         # down spin
@@ -187,14 +210,14 @@ module Fermion
         if ket != 0
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
-            push!(val, -t*sig)
+            push!(val, t*sig)
         end
 
         sig, ket = ciaj(j, i, state)
         if ket != 0
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
-            push!(val, -t*sig)
+            push!(val, t*sig)
         end
 
         # down spin
@@ -202,7 +225,7 @@ module Fermion
         if ket != 0
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
-            push!(val, -t*sig)
+            push!(val, t*sig)
         end
     end
 
@@ -242,7 +265,7 @@ module Fermion
         push!(val, diag)
     end
 
-    function calc_1s3d_for_indirect_RIXS(Ns::Int64 ,state::Int64, jd::Int64, Vd::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
+    function calc_core_hole_interaction_RIXS(Ns::Int64 ,state::Int64, jd::Int64, Vd::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         # 1s-3d interaction
         diag = -Vd*number_op(jd, Ns, state)
 
@@ -282,7 +305,7 @@ module Fermion
         return H_mat
     end
 
-    function calc_H1s3d_for_indirect_RIXS(jd, Vd, system_para, basis)
+    function calc_intermediate_H(jd, Vd, system_para, basis)
         println("dim = ", length(basis))
 
         Ns = system_para.Ns   
@@ -293,11 +316,11 @@ module Fermion
         val = Float64[]
     
         @inbounds for state in basis
-            calc_1s3d_for_indirect_RIXS(Ns, state, jd, Vd, row, col, val, reverse_basis)
+            calc_core_hole_interaction_RIXS(Ns, state, jd, Vd, row, col, val, reverse_basis)
         end
     
-        H1s3d = sparse(row, col, val)
-        return H1s3d
+        H_int = sparse(row, col, val)
+        return H_int
     end
 
     function calc_extHubbard_model(system_para, basis)
@@ -353,10 +376,11 @@ module Fermion
             diag = 0.0
             @inbounds for i in 1:Ns
                 links = link_list[i]
+
+                # links[1]はi siteとi siteの相互作用
                 @inbounds for link in links[2:end]
                     #println(link)
                     j = link[1]
-                    #　neighbor = link[2]
                     para = link[3]
                     t = para[1]
                     #println(para)
@@ -476,8 +500,6 @@ module Fermion
             end
         end
 
-        sns.heatmap(Cq, cmap="magma")
-        plt.show()
         return CCF, Cq
     end
 
