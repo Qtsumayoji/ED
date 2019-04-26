@@ -23,17 +23,18 @@ module Model
         Ns = size(link_mat)[1]
         link_list = [[] for i in 1:Ns]
         for i in 1:Ns
-            tmp = [i ,link_mat[i][i][1], link_mat[i][i][2:end]]
+            # 初めに(i,i)のパラメータを代入しておく
+            tmp = [i, link_mat[i][i][1], link_mat[i][i][2:end]]
             push!(link_list[i], tmp)
-            for j in 1:i
+            for j in 1:i - 1
                 #println(link_mat[i][j])
-                if link_mat[i][j] != [] && i != j
+                if link_mat[i][j] != []
                     tmp = [j ,link_mat[i][j][1], link_mat[i][j][2:end]]
                     push!(link_list[i], tmp)
                 end
             end
 
-            println(i," ",link_list[i])
+            #println(i," ",link_list[i])
         end
 
         return link_list
@@ -106,7 +107,7 @@ module Model
                 #println(i_site," ",j_site," ",link_mat[i_site][j_site])
             end
         end
-        show_links(link_mat)
+        #show_links(link_mat)
 
         link_list = make_link_list(link_mat)
 

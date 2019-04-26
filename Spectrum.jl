@@ -8,7 +8,7 @@ module Spectrum
         tridim = length(α)
         A = z - α[tridim]
         
-        for j in tridim:-1:2
+        @inbounds for j in tridim:-1:2
             A = z - α[j-1] - β[j]^2.0/A
         end
         
@@ -33,7 +33,7 @@ module Spectrum
         # 波数表示の生成演算子を作用させるためNe+1の部分空間でのハミルトニアンを作る
         #H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Np)
         H = Fermion.calc_extHubbard_model(system_para, basis_Np)
-        φex = Fermion.calc_ck_state(φgs, k, Ne, pos, basis, basis_Np)
+        φex = Fermion.calc_ck_state(φgs, k, pos, basis, basis_Np)
 
         norm2_φex = φex'*φex
         φex /= norm(φex)
@@ -55,7 +55,7 @@ module Spectrum
         #H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Nm)
         H = Fermion.calc_extHubbard_model(system_para, basis_Nm)
 
-        φex = Fermion.calc_ak_state(φgs, k, Ne, pos, basis, basis_Nm)
+        φex = Fermion.calc_ak_state(φgs, k, pos, basis, basis_Nm)
         norm2_φex = φex'*φex
         φex /= norm(φex)
         
@@ -88,7 +88,7 @@ module Spectrum
         # 波数表示の生成演算子を作用させるためNe+1の部分空間でのハミルトニアンを作る
         #H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Np)
         H = Fermion.calc_extHubbard_model(system_para, basis_Np)
-        φex = Fermion.calc_ci_state(φgs, i, Ns, Ne, basis, basis_Np)
+        φex = Fermion.calc_ci_state(φgs, i, Ns, basis, basis_Np)
 
         norm2_φex = φex'*φex
         φex /= norm(φex)
@@ -110,7 +110,7 @@ module Spectrum
         #H = Fermion.calc_Hubbard_model(H_para, system_para, basis_Nm)
         H = Fermion.calc_extHubbard_model(system_para, basis_Nm)
 
-        φex = Fermion.calc_ai_state(φgs, i, Ns, Ne, basis, basis_Np)
+        φex = Fermion.calc_ai_state(φgs, i, Ns, basis, basis_Np)
         norm2_φex = φex'*φex
         φex /= norm(φex)
         
@@ -126,7 +126,7 @@ module Spectrum
     end
 
     # m:Gの波数のindex
-    function calc_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
+    function calc_1s4p_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
         Ns = system_para.Ns 
         Ne = system_para.Ne 
         pos = system_para.pos
@@ -148,10 +148,9 @@ module Spectrum
         z = Diagonal([Egs + ωin + im*Γ for i in 1:dim])
         for id in 1:Ns
             r = pos[id]
-            H1s3d = Fermion.calc_H1s3d_for_indirect_RIXS(id, Vd, system_para, basis)
+            H1s3d = Fermion.calc_intermediate_H(id, Vd, system_para, basis)
             H_RIXS = H + H1s3d
-            #φex += exp(im*q'*r)*Krylov.BiCGSTAB(H_RIXS - z, φgs, maxite = 200, ϵ = 1e-3)
-            @time φex += exp(im*q'*r)*Krylov.BiCGSTAB_mod(H_RIXS - real(z), - imag(z), φgs, maxite = 200, ϵ = 1e-3)
+            @time φex += exp(im*q'*r)*Krylov.BiCGSTAB_mod(H_RIXS - real(z), - imag(z), φgs, maxite = 400, ϵ = 1e-3)
         end
         
         norm2_φex = φex'*φex
@@ -166,6 +165,123 @@ module Spectrum
         end
 
         # Δω=0 のRIXS強度の最大値からローレンチアンを作りなおして引き算
+        a = 1.0/π*imag(G[m, 1])
+        elas = pi*a*η^2.0*[1.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
+        G[m,:] -= im*elas
+    end
+
+    # m:Gの波数のindex
+    function calc_O2p_RIXS_spectrum(m, Egs, φgs, system_para, RIXS_para, basis)
+        Ns = system_para.Ns 
+        Ne = system_para.Ne 
+        unit_vec = system_para.unit_vec 
+        link_list = system_para.link_list 
+
+        Vd = RIXS_para.Vd
+        η = RIXS_para.η
+        Γ = RIXS_para.Γ
+        ωin = RIXS_para.ωin
+        n_lanczos_vec = RIXS_para.n_lanczos_vec
+        NΩ = RIXS_para.NΩ
+        Ω = RIXS_para.Ω 
+        G = RIXS_para.G
+
+
+        Ne = Ne + 1
+        # totSz = 0 を仮定している
+        # 任意のSzにするいはbasisからup spinとdown spinの数を数える必要がある
+        nupspin = div(Ne, 2) + 1
+        ndownspin = Ne - nupspin
+        basis_Np = Fermion.make_restricted_Hilbert_space(Ns, Ne, nupspin, ndownspin)
+        dim_Np = length(basis_Np)
+
+        Ne = Ne - 1
+        nupspin = div(Ne, 2)
+        ndownspin = Ne - nupspin
+        basis_Nm = Fermion.make_restricted_Hilbert_space(Ns, Ne, nupspin, ndownspin)
+        dim_Nm = length(basis_Nm)
+
+        φci = zeros(dim_Np)
+        φex = zeros(Complex, dim_Np)
+        φai = zeros(Complex, dim_Nm)
+
+        z = Diagonal([Egs + ωin + im*Γ for i in 1:dim_Np])
+        for id in 5:5
+            # Make_3dband_dp_model.jl参照
+            # O siteの1体ポテンシャルは3でラベルされている
+            link = link_list[id][1]
+            if link[2] == 3
+                φci = Fermion.calc_ci_state(φgs, id, Ns, basis, basis_Np)
+                H = Fermion.calc_3band_dp_model(system_para, basis_Np)
+                H_int = Fermion.calc_intermediate_H(id, Vd, system_para, basis_Np)
+                H_RIXS = H + H_int
+                @time φex += Krylov.BiCGSTAB_mod(H_RIXS - real(z), - imag(z), φci, maxite = 400, ϵ = 1e-3)
+                φai += Fermion.calc_ai_state(φex, id, Ns, basis_Np, basis_Nm)
+            end
+        end
+        φci, φex = [], []
+        φex = φai
+        
+        norm2_φex = φex'*φex
+        φex /= norm(φex)
+        H = Fermion.calc_3band_dp_model(system_para, basis_Nm)
+        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
+        for i in 1:NΩ
+            ω = Ω[i]
+            z = Egs + ω + im*η
+            A = -calc_continued_fraction_expansion(z, α, β)
+            # 2 = spin
+            G[m, i] += norm2_φex/A
+        end
+        
+# down spinを1sから2pへ励起させる過程
+#        Ne = Ne + 1
+#        ndownspin = div(Ne, 2) + 1
+#        nupspin = Ne - ndownspin
+#        basis_Np = Fermion.make_restricted_Hilbert_space(Ns, Ne, nupspin, ndownspin)
+#        dim_Np = length(basis_Np)
+#
+#        Ne = Ne - 1
+#        ndownspin = div(Ne, 2)
+#        nupspin = Ne - ndownspin
+#        basis_Nm = Fermion.make_restricted_Hilbert_space(Ns, Ne, nupspin, ndownspin)
+#        dim_Nm = length(basis_Nm)
+#
+#        φci = zeros(dim_Np)
+#        φex = zeros(Complex, dim_Np)
+#        φai = zeros(Complex, dim_Nm)
+#
+#        z = Diagonal([Egs + ωin + im*Γ for i in 1:dim_Np])
+#        for id in 5:5
+#            # Make_3dband_dp_model.jl参照
+#            # O siteの1体ポテンシャルは3でラベルされている
+#            link = link_list[id][1]
+#            if link[2] == 3
+#                φci = Fermion.calc_ci_state(φgs, id + Ns, Ns, basis, basis_Np)
+#                H = Fermion.calc_3band_dp_model(system_para, basis_Np)
+#                H_int = Fermion.calc_intermediate_H(id + Ns, Vd, system_para, basis_Np)
+#                H_RIXS = H + H_int
+#                @time φex += Krylov.BiCGSTAB_mod(H_RIXS - real(z), - imag(z), φci, maxite = 400, ϵ = 1e-3)
+#                φai += Fermion.calc_ai_state(φex, id + Ns, Ns, basis_Np, basis_Nm)
+#            end
+#        end
+#        φci, φex = [], []
+#        φex = φai
+#        
+#        norm2_φex = φex'*φex
+#        φex /= norm(φex)
+#        H = Fermion.calc_3band_dp_model(system_para, basis_Nm)
+#        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
+#        for i in 1:NΩ
+#            ω = Ω[i]
+#            z = Egs + ω + im*η
+#            A = -calc_continued_fraction_expansion(z, α, β)
+#            # 2 = spin
+#            G[m, i] += norm2_φex/A
+#        end
+#
+        # Δω=0 のRIXS強度の最大値からローレンチアンを作りなおして引き算
+        # G[m, 1]がピークだと仮定している
         a = 1.0/π*imag(G[m, 1])
         elas = pi*a*η^2.0*[1.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
         G[m,:] -= im*elas
@@ -218,6 +334,7 @@ module Spectrum
     # m:Gの波数のindex
     function calc_XAS_spectrum(Egs, φgs, H, system_para, RIXS_para, basis)
         Ns = system_para.Ns 
+        Ne = system_para.Ne
         link_list = system_para.link_list 
 
         Vd = RIXS_para.Vd
@@ -230,8 +347,8 @@ module Spectrum
         dim = length(φgs)
 
         for id in 1:Ns
-            H1s3d = Fermion.calc_H1s3d_for_indirect_RIXS(id, Vd, system_para, basis)
-            H_XAS = H + H1s3d
+            H_int = Fermion.calc_intermediate_H(id, Vd, system_para, basis)
+            H_XAS = H + H_int
             norm2_φgs = φgs'*φgs
             φgs /= norm(φgs)
             α, β = Krylov.lanczos_vector(H_XAS, φgs; minite = n_lanczos_vec)
@@ -246,48 +363,45 @@ module Spectrum
         end
     end
 
-    function calc_CS_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
+    # m:Gの波数のindex
+    function calc_O2p_XAS_spectrum(Egs, φgs, system_para, RIXS_para, basis)
         Ns = system_para.Ns 
-        Ne = system_para.Ne 
-        pos = system_para.pos
-        unit_vec = system_para.unit_vec 
+        Ne = system_para.Ne
         link_list = system_para.link_list 
 
         Vd = RIXS_para.Vd
-        η = RIXS_para.η
         Γ = RIXS_para.Γ
-        ωin = RIXS_para.ωin
         n_lanczos_vec = RIXS_para.n_lanczos_vec
         NΩ = RIXS_para.NΩ
         Ω = RIXS_para.Ω 
         G = RIXS_para.G
 
-        dim = length(φgs)
+        basis_Np = Fermion.make_n_basis(Ns, Ne + 1)
+        dim = length(basis_Np)
+        φci = zeros(dim)
         φex = zeros(Complex, dim)
+        dim = length(φgs)
 
-        z = Diagonal([Egs + ωin + im*Γ for i in 1:dim])
         for id in 1:Ns
-            r = pos[id]
-            H1s3d = Fermion.calc_H1s3d_for_indirect_RIXS(id, Vd, system_para, basis)
-            H_RIXS = H + H1s3d
-            φex += exp(im*q'*r)*Krylov.BiCGSTAB(H_RIXS - z, φgs, maxite = 200, ϵ = 1e-6)
+            link = link_list[id][1]
+            if link[2] == 3
+                φci = Fermion.calc_ci_state(φgs, id, Ns, basis, basis_Np)
+                H = Fermion.calc_3band_dp_model(system_para, basis_Np)
+                H_int = Fermion.calc_intermediate_H(id, Vd, system_para, basis_Np)
+                H_XAS = H + H_int
+                norm2_φci = φci'*φci
+                φci /= norm(φci)
+                α, β = Krylov.lanczos_vector(H_XAS, φci; minite = n_lanczos_vec)
+                for i in 1:NΩ
+                    ωin = Ω[i]
+                    z = Egs + ωin + im*Γ
+                    A = -calc_continued_fraction_expansion(z, α, β)
+                    # 2 = spin
+                    # core-holeの相互作用にスピン依存性がないので単純に2倍する
+                    G[1, i] = 2.0*norm2_φci/A
+                end
+            end
         end
-        
-        norm2_φex = φex'*φex
-        φex /= norm(φex)
-        α, β = Krylov.lanczos_vector(H, φex; minite = n_lanczos_vec)
-        for i in 1:NΩ
-            ω = Ω[i]
-            z = Egs + ω + im*η
-            A = -calc_continued_fraction_expansion(z, α, β)
-            # 2 = spin
-            G[m, i] = 2.0*norm2_φex/A
-        end
-
-        # Δω=0 のRIXS強度の最大値からローレンチアンを作りなおして引き算
-        a = 1.0/π*imag(G[m, 1])
-        elas = pi*a*η^2.0*[1.0/(Ω[j]^2.0 + η^2.0) for j in 1:NΩ]
-        G[m,:] -= im*elas
     end
 
     function calc_dynamical_structure_factor(m, q, E, φ, H, system_para, dynamical_structure_factor_para, basis)
@@ -362,7 +476,7 @@ module Spectrum
         for m in 1:Nb*Ns
             k = (m - 1)*g1/Ns
     
-            φex = Fermion.calc_ck_state(φgs, k, Ne, pos, basis, basis_Np)
+            φex = Fermion.calc_ck_state(φgs, k, pos, basis, basis_Np)
             #println(norm(φex))
             norm2_φex = φex'*φex
             φex /= norm(φex)
@@ -388,7 +502,7 @@ module Spectrum
             k = (m - 1)*g1/Ns
             kx = k[1]; ky = k[2]
     
-            φex = Fermion.calc_ak_state(φgs, k, Ne, pos, basis, basis_Nm)
+            φex = Fermion.calc_ak_state(φgs, k, pos, basis, basis_Nm)
             #println(norm(φex))
             norm2_φex = φex'*φex
             φex /= norm(φex)

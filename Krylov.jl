@@ -1,7 +1,7 @@
 module Krylov
     using LinearAlgebra
     using SparseArrays
-    using MKLSparse
+    #using MKLSparse
 
     function lanczos(A; minite=100, maxite = 2000, ϵ = 1E-5, nev = 1)
         dim = size(A)[1]
@@ -106,14 +106,14 @@ module Krylov
         return α, β
     end
 
-    #列ベクトルとしてsiz個のベクトルが入っているuを直交化する
-    function gram_schmidt(u::Array)
-        siz = size(u)
+    #列ベクトルとしてn個のベクトルが入っている行列Uを直交化する
+    function gram_schmidt(U::Array)
+        siz = size(U)
         n = siz[2]
         for i in 1:n
             for j in 1:i - 1
-                a = u[:, j]'*u[:, i]
-                u[:, i] += -a*u[:, j]
+                a = U[:, j]'*U[:, i]
+                U[:, i] += -a*U[:, j]
             end
             u[:, i] /= norm(u[:, i]) 
         end
@@ -354,6 +354,15 @@ module Krylov
         return x
     end
 
+    function cAx(A_re, A_im, x)
+        return A_re*real(x) - A_im*imag(x) + im*(A_re*imag(x) + A_im*real(x))
+    end
+
+    # グリーン関数の計算では対角要素のみに虚部が乗るので
+    # A1 = real(H), A2 = imag(H) = +η (retarded Green func)
+    # にはじめから分解しておく
+    # 実行列*複素ベクトルを実数の演算に直してから計算したほうが早いのはBLASの最適化の問題か？
+    # 複素ベクトル*複素ベクトルは早くらないのでそちらは気にしなくていいみたい
     function BiCGSTAB_mod(A1::SparseMatrixCSC{Float64, Int64}, A2, b; maxite = 1000, ϵ = 1E-5)
         println("maxite=",maxite," ϵ=",ϵ)
 
@@ -368,7 +377,7 @@ module Krylov
         t = zeros(Complex, dim)
 
         x *= 0.0
-        r1 .= b - (A1*real(x) - A2*imag(x) + im*(A1*imag(x) + A2*real(x)))
+        r1 .= b - cAx(A1, A2 ,x)
         r2 .= r1
 
         α  = 0.0 + im*0.0
@@ -387,7 +396,7 @@ module Krylov
             end
 
             # v = A*p
-            v = A1*real(p) - A2*imag(p) + im*(A1*imag(p) + A2*real(p))
+            v = cAx(A1, A2 ,p)
             α = ρ1/(r2'*v)
             s .= r1 - α*v
 
@@ -398,7 +407,7 @@ module Krylov
                 return x
             else
                 # t = A*s
-                t = A1*real(s) - A2*imag(s) + im*(A1*imag(s) + A2*real(s))
+                t = cAx(A1, A2 , s)
                 ω = t'*s/(t'*t)
                 x += α*p + ω*s
                 r1 .= s - ω*t

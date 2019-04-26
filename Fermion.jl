@@ -27,6 +27,7 @@ module Fermion
         nstate = 4^Ns
         basis = Int64[]
         for i in 1:nstate
+        #for i in nstate:-1:1
             if count_ones(i) == Ne
                 push!(basis, i)
             end
@@ -48,6 +49,12 @@ module Fermion
         end
 
         return sbasis
+    end
+
+    function make_restricted_Hilbert_space(Ns, Ne, nup, ndown)
+        basis = make_n_basis(Ns, Ne)
+        basis = make_s_basis(Ns, nup, ndown, basis)
+        return basis
     end
 
     function make_reverse_basis(basis)
@@ -75,10 +82,10 @@ module Fermion
     
     function test_calc_fermion_sign()
         test1 = 21343154
-        println(bits(test1))
+        println(string(test1, base=2))
         println(calc_fermion_sign(4, test1)," ",count_ones(test1 & bitflag[4]))
         test2 =122321
-        println(bits(test2))
+        println(string(test2, base=2))
         println(calc_fermion_sign(7, test2)," ",count_ones(test2 & bitflag[7]))
     end
 
@@ -399,7 +406,7 @@ module Fermion
 
     # basisにはあらかじめ粒子数-1の基底を含めておくように
     # Ne粒子系にup spinを一つ加えた時のスペクトル関数を計算
-    function calc_ck_state(φ::Array{Float64}, k, Ne::Int64, pos:: Array{Array{Float64}} , basis::Array{Int64}, basis_Np::Array{Int64})
+    function calc_ck_state(φ::Array{Float64}, k, pos:: Array{Array{Float64}} , basis::Array{Int64}, basis_Np::Array{Int64})
         Ns = length(pos)
         reverse_basis = make_reverse_basis(basis)
         reverse_basis_Np = make_reverse_basis(basis_Np)
@@ -423,7 +430,7 @@ module Fermion
         return ϕ/Ns
     end
 
-    function calc_ak_state(φ, k, Ne, pos, basis, basis_Nm)
+    function calc_ak_state(φ, k, pos, basis, basis_Nm)
         Ns = length(pos)
         reverse_basis = make_reverse_basis(basis)
         reverse_basis_Nm = make_reverse_basis(basis_Nm)
@@ -503,7 +510,7 @@ module Fermion
         return CCF, Cq
     end
 
-    function calc_ci_state(φ, i, Ns, Ne, basis, basis_Np)
+    function calc_ci_state(φ, i, Ns, basis, basis_Np)
         reverse_basis = make_reverse_basis(basis)
         reverse_basis_Nm = make_reverse_basis(basis_Np)
         ϕ = zeros(Complex, length(basis_Np))
@@ -518,7 +525,7 @@ module Fermion
         return ϕ
     end
     
-    function calc_ai_state(φ, i, Ns, Ne, basis, basis_Nm)
+    function calc_ai_state(φ, i, Ns, basis, basis_Nm)
         reverse_basis = make_reverse_basis(basis)
         reverse_basis_Nm = make_reverse_basis(basis_Nm)
         ϕ = zeros(Complex, length(basis_Nm))
