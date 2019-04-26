@@ -62,7 +62,6 @@ module Fermion
         dim = length(basis)
         for i in 1:dim
             reverse_basis[basis[i]] = i
-            #println(bits(basis[i]))
         end
 
         return reverse_basis
