@@ -26,8 +26,8 @@ function main()
 
     Hdp = Any[1;tdp]
     Hpp = Any[2;tpp]
-    Hp  = Any[3;Upp;0.0]
-    Hd  = Any[4;Udd;Δ]
+    Hp  = Any[1;Upp;0.0]
+    Hd  = Any[4;Udd;-Δ]
     Hdd = Any[5;J]
 
     # corner_sharing_unitt_cell

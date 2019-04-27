@@ -26,7 +26,7 @@ module Fermion
     function make_n_basis(Ns::Integer, Ne::Integer)
         nstate = 4^Ns
         basis = Int64[]
-        for i in 1:nstate
+        for i in 0:nstate-1
         #for i in nstate:-1:1
             if count_ones(i) == Ne
                 push!(basis, i)
@@ -95,14 +95,14 @@ module Fermion
             state = xor(state , (1 << (i - 1)))
             return fermion_sign, state
         else
-            return 0, 0
+            return 0, -1
         end
     end
 
     # anihiration operator
     function ai(i::Int64, state::Int64)
         if (state & (1 << (i - 1))) == 0
-            return 0,0
+            return 0, -1
         else
             fermion_sign = calc_fermion_sign(i, state)
             state = xor(state , (1 << (i - 1)))
@@ -114,7 +114,7 @@ module Fermion
     # c_i*a_j
     function ciaj(i::Int64, j::Int64, state::Int64)
         if (state & (1 << (j - 1))) == 0
-            return 0, 0
+            return 0, -1
         else
             fermion_sign = calc_fermion_sign(j, state)
             state = xor(state , (1 << (j - 1)))
@@ -123,7 +123,7 @@ module Fermion
                 state = xor(state , (1 << (i - 1)))
                 return fermion_sign, state
             else
-                return 0, 0
+                return 0, -1
             end
         end
     end
@@ -132,7 +132,7 @@ module Fermion
     function exchange_σ1σ2σ2σ1(j1::Int64, Ns1::Int64, j2::Int64, Ns2::Int64, state::Int64)
         # c_j1σ1
         if (state & (1 << (j1 + Ns1 - 1))) == 0
-            return 0, 0
+            return 0, -1
         else
             fermion_sign = calc_fermion_sign(j1 + Ns1, state)
             state = xor(state , (1 << (j1 + Ns1 - 1)))
@@ -144,7 +144,7 @@ module Fermion
                 
                 # c_j2σ2
                 if (state & (1 << (j2 + Ns2 - 1))) == 0
-                    return 0, 0
+                    return 0, -1
                 else
                     fermion_sign = calc_fermion_sign(j2 + Ns2, state)
                     state = xor(state , (1 << (j2 + Ns2 - 1)))
@@ -155,7 +155,7 @@ module Fermion
                         state = xor(state , (1 << (j2 + Ns1 - 1)))
                         return fermion_sign, state
                     else
-                        return 0, 0
+                        return 0, -1
                     end
                 end
             else
@@ -205,7 +205,7 @@ module Fermion
     function calc_Hkij(i::Int64, j::Int64, Ns::Int64, state::Int64, t::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         # up spin
         sig, ket = ciaj(i, j, state)
-        if ket != 0
+        if ket != -1
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
             push!(val, t*sig)
@@ -213,14 +213,14 @@ module Fermion
 
         # down spin
         sig, ket = ciaj(i + Ns, j + Ns, state)
-        if ket != 0
+        if ket != -1
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
             push!(val, t*sig)
         end
 
         sig, ket = ciaj(j, i, state)
-        if ket != 0
+        if ket != -1
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
             push!(val, t*sig)
@@ -228,7 +228,7 @@ module Fermion
 
         # down spin
         sig, ket = ciaj(j + Ns, i + Ns, state)
-        if ket != 0
+        if ket != -1
             push!(row, reverse_basis[state])
             push!(col, reverse_basis[ket])
             push!(val, t*sig)
@@ -420,7 +420,7 @@ module Fermion
             #println(a'*a)
             @inbounds for state in basis
                 sign, ket = ci(i, state)
-                if ket != 0 
+                if ket != -1 
                     ϕ[reverse_basis_Np[ket]] += sign*a*φ[reverse_basis[state]]
                 end
             end
@@ -443,7 +443,7 @@ module Fermion
             #println(a'*a)
             @inbounds for state in basis
                 sign, ket = ai(i, state)
-                if ket != 0 
+                if ket != -1 
                     ϕ[reverse_basis_Nm[ket]] += sign*a*φ[reverse_basis[state]]
                 end
             end
@@ -516,7 +516,7 @@ module Fermion
 
         for state in basis
             sign, ket = ci(i, state)
-            if ket != 0 
+            if ket != -1
                 ϕ[reverse_basis_Nm[ket]] += sign*φ[reverse_basis[state]]
             end
         end
@@ -531,7 +531,7 @@ module Fermion
 
         for state in basis
             sign, ket = ai(i, state)
-            if ket != 0 
+            if ket != -1
                 ϕ[reverse_basis_Nm[ket]] += sign*φ[reverse_basis[state]]
             end
         end

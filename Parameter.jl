@@ -7,6 +7,8 @@ module Parameter
         Nz::Int64
         Ns::Int64
         Ne::Int64
+        nup::Int64
+        ndown::Int64
         unit_vec::Array{Array{Float64, 1}}
         reciprocal_lattice_vec::Array{Array{Float64, 1}}
         link_mat::Array{Array{Any,1},1}

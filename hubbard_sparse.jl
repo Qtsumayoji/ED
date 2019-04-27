@@ -203,15 +203,15 @@ function Hubbard_model()
     g3 = 2.0*pi*cross(unit_vec[1], unit_vec[2])/V
     g = [g1, g2, g3]
 
-    system_para = Parameter.System_para(ns, Nx, Ny, Nz, Ns, Ne, unit_vec, g, link_mat, link_list, pos)
-    Model.show_links(link_mat)
-
     # 電子数=Ne,totSz=0の基底を作成
     basis = Fermion.make_n_basis(Ns, Ne)
-    nupspin = div(Ne, 2)
-    ndownspin = Ne - nupspin
-    basis = Fermion.make_s_basis(Ns, nupspin, ndownspin, basis)
+    nup = div(Ne, 2)
+    ndown = Ne - nup
+    basis = Fermion.make_s_basis(Ns, nup, ndown, basis)
     dim = length(basis)
+
+    system_para = Parameter.System_para(ns, Nx, Ny, Nz, Ns, Ne, nup, ndown, unit_vec, g, link_mat, link_list, pos)
+    Model.show_links(link_mat)
 
     println("calc_Hubbard_model...")
     #H = @time Fermion.calc_Hubbard_model(H_para, system_para, basis)

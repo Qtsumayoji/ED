@@ -11,6 +11,7 @@ include("./Fermion.jl")
 include("./Spectrum.jl")
 include("./Parameter.jl")
 include("./Make_singleband_Hubbard.jl")
+include("./bit_operations.jl")
 
 PyPlot.rc("font",family ="Times New Roman")
 
@@ -18,7 +19,7 @@ BLAS.set_num_threads(4)
 
 Udd = 8.0
 Upp = Udd/2.0
-Upc = Upp/0.8
+Upc = 5.0
 
 function plot_spectra(Nk, K, NΩ, Ω, G)
     X = zeros(Nk + 1, NΩ + 1)
@@ -61,19 +62,21 @@ function main_RIXS(Egs, φgs, system_para, basis)
     Γ = 0.5
     n_lanczos_vec = 200
     # 入射光の振動数
-    ωin = 4.85
+    ωin = 4.2
     
     Ns = system_para.Ns
-    NΩ = 1000
+    NΩ = 2000
     # ωin - ωout
-    Ω = range(0.0, stop=-15.0, length=NΩ)
+    Ω = range(0.0, stop=-10.0, length=NΩ)
     # x-ray の運動量変化
     NQ = 1
     Q = zeros(NQ)
     G = zeros(Complex, NQ, NΩ)
-    RIXS_para = Parameter.RIXS_para(Upc, η, Γ, n_lanczos_vec, ωin, NΩ, -Ω, NQ, Q, G)
+    RIXS_para = Parameter.RIXS_para(-Upc, η, Γ, n_lanczos_vec, ωin, NΩ, -Ω, NQ, Q, G)
     
-    @time Spectrum.calc_O2p_RIXS_spectrum(1, Egs, φgs, system_para, RIXS_para, basis)
+    #@time Spectrum.calc_O2p_RIXS_spectrum(1, Egs, φgs, system_para, RIXS_para, basis)
+    H = Fermion.calc_3band_dp_model(system_para, basis)
+    @time Spectrum.calc_1s4p_RIXS_spectrum(1, [0.0;0.0;0.0], Egs, φgs, H, system_para, RIXS_para, basis)
 
     #PyPlot.subplot()
     PyPlot.figure(figsize=(10, 6))
@@ -113,7 +116,7 @@ function main_dynamical_structure_factor(Egs, φgs, system_para, basis)
     Nk = 1
     K = zeros(Nk)
     NΩ = 1000
-    Ω = range(0.0, stop=15.0, length=NΩ)
+    Ω = range(0.0, stop=-15.0, length=NΩ)
     G = zeros(Complex, Nk, NΩ)
     DSF_para = Parameter.Dynamical_structure_factor_para(η, n_lanczos_vec, Nk, NΩ, Ω, G)
 
@@ -128,7 +131,7 @@ end
 function dp_model()
     # 格子モデルの作成
     #link_mat, link_list, pos = Model.square_lattice(Nx, Ny)
-    input_file = "corner_sharing_dp.txt"
+    input_file = "corner_sharing_dp_deg.txt"
     link_mat, link_list, pos, system_size = Model.read_model(input_file)
     unit_vec = Model.get_square_lattice_unit_vec()
 
@@ -137,8 +140,8 @@ function dp_model()
     Ny = system_size[3]
     Nz = system_size[4]
     Ns = system_size[5]
-    # 電子数
-    Ne = 16
+    # ホール数
+    Ne = 2
 
     # 逆格子ベクトル
     V = dot(unit_vec[1], cross(unit_vec[2], unit_vec[3]))
@@ -147,15 +150,18 @@ function dp_model()
     g3 = 2.0*pi*cross(unit_vec[1], unit_vec[2])/V
     g = [g1, g2, g3]
 
-    system_para = Parameter.System_para(ns, Nx, Ny, Nz, Ns, Ne, unit_vec, g, link_mat, link_list, pos)
-    Model.show_links(link_mat)
+    # 電子数=Ne,2totSz=nup - ndownの基底を作成
+    #basis = Fermion.make_n_basis(Ns, Ne)
+    nup   = div(Ne, 2)
+    ndown = Ne - nup
+    #basis = Fermion.make_s_basis(Ns, nup, ndown, basis)
+    #dim = length(basis)
 
-    # 電子数=Ne,totSz=0の基底を作成
-    basis = Fermion.make_n_basis(Ns, Ne)
-    nupspin = div(Ne, 2)
-    ndownspin = Ne - nupspin
-    basis = Fermion.make_s_basis(Ns, nupspin, ndownspin, basis)
-    dim = length(basis)
+    basis = bit_operations.two_particle_Sz_0_basis(Ns)
+    #for i in basis println(string(i, base=2)) end
+
+    system_para = Parameter.System_para(ns, Nx, Ny, Nz, Ns, Ne, nup, ndown, unit_vec, g, link_mat, link_list, pos)
+    Model.show_links(link_mat)
 
     println("calc_dp_model...")
     #H = @time Fermion.calc_dp_model(H_para, system_para, basis)
@@ -179,3 +185,20 @@ function dp_model()
 end
 
 dp_model()
+
+function test()
+    Ns = 16
+    Ne = 0
+
+    @time basis = Fermion.make_n_basis(Ns, Ne)
+    dim = length(basis)
+    println(basis)
+    println(dim)
+
+    nupspin = div(Ne, 2)
+    ndownspin = Ne - nupspin
+    @time basis = Fermion.make_s_basis(Ns, nupspin, ndownspin, basis)
+    dim = length(basis)
+    println(dim)
+end
+#test()
