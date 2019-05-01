@@ -16,15 +16,6 @@ module Parameter
         pos::Array{Array{Float64}}
     end
 
-    mutable struct Hubbard_para
-        t1::Float64
-        t2::Float64
-        t3::Float64
-        U::Float64
-        μ::Float64
-        V::Float64
-    end
-
     mutable struct Spectral_func_para
         η::Float64
         n_lanczos_vec::Int64
@@ -50,6 +41,20 @@ module Parameter
         n_lanczos_vec::Int64
         # 入射光の振動数
         ωin::Float64
+        NΩ::Int64
+        # ωin - ωout
+        Ω::Array{Float64, 1}
+        # x-ray の運動量変化
+        NQ::Int64
+        Q::Array{Float64, 1}
+        G::Array{Complex, 2}
+    end
+
+    mutable struct XAS_para
+        Vd::Float64
+        Γ::Float64
+        n_lanczos_vec::Int64
+        # 入射光の振動数
         NΩ::Int64
         # ωin - ωout
         Ω::Array{Float64, 1}

@@ -257,7 +257,7 @@ module Fermion
             para = link[3]
             U = para[1]
             μ = para[2]
-            #println(link)
+            #println(i," ",link[1]," ",link[2]," U=",U," μ=",μ)
 
             # n↑n↓
             diag += U*nund(i, Ns, state)
@@ -273,6 +273,8 @@ module Fermion
 
     function calc_core_hole_interaction_RIXS(Ns::Int64 ,state::Int64, jd::Int64, Vd::Float64, row::Array{Int64}, col::Array{Int64}, val::Array{Float64}, reverse_basis::Dict)
         # 1s-3d interaction
+        # 中間状態ではjd siteの1s軌道にホールが1つ存在するので
+        # jd siteの電子数だけを数えればいい
         diag = -Vd*number_op(jd, Ns, state)
 
         id = reverse_basis[state]
@@ -389,9 +391,14 @@ module Fermion
                     j = link[1]
                     para = link[3]
                     t = para[1]
-                    #println(para)
-
                     calc_Hkij(i, j, Ns, state, t, row, col, val, reverse_basis)
+
+                    #V = 0.0
+                    #if length(para) == 2
+                    #    V = para[2]
+                    #end
+                    #println(V)
+                    #diag += V*ninj(i, j, Ns, state)
                 end
             end
 

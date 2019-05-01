@@ -34,7 +34,7 @@ module Model
                 end
             end
 
-            #println(i," ",link_list[i])
+            println(i," ",link_list[i])
         end
 
         return link_list
@@ -70,6 +70,7 @@ module Model
         for i in 1:Ns
             line = readline(fp)
             line = rstrip(line, '\n')
+            line = rstrip(line, ' ')
             str = split(line, " ")
             # str[1]はサイトの番号
             str = str[2:end]
@@ -84,12 +85,14 @@ module Model
             if line == ""
                 continue
             end
+            line = rstrip(line, ' ')
             str = split(line, " ")
 
             is_valid_para = false
             for para in str[4:end]
-                n = parse(Float64, para)
-                if n != 0.0
+               # println(para)
+                # パラメータがすべて"0.0"でなければvalid
+                if para != "0.0"
                     is_valid_para = true
                 end
             end
@@ -99,7 +102,7 @@ module Model
                 i_site = parse(Int64, str[1])
                 j_site = parse(Int64, str[2])
 
-                # 3つめはn次近接を識別するパラメータlink_mat
+                # str[3]はなんらかの識別パラメータ
                 push!(link_mat[i_site][j_site], parse(Int64, str[3]))
                 for a in str[4:end]
                     push!(link_mat[i_site][j_site], parse(Float64, a))

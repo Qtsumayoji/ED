@@ -100,7 +100,7 @@ function dp_element_u(fp, site_Cu, site_O, Hdp)
     Hx_xy = Hdp[3]
 
     # dx2y2-px
-    write_inv(fp, site_Cu[1], site_O[2], string(Hx_x2y2[1])*" "*string(+Hx_x2y2[2]))
+    write_inv(fp, site_Cu[1], site_O[2], string(Hx_x2y2[1])*" "*string(-Hx_x2y2[2]))
 
     # d3z2r2-px
     if deg_3d == 3
@@ -115,7 +115,7 @@ function dp_element_d(fp, site_Cu, site_O, Hdp)
     Hx_xy = Hdp[3]
 
     # dx2y2-px
-    write_inv(fp, site_Cu[1], site_O[2], string(Hx_x2y2[1])*" "*string(-Hx_x2y2[2]))
+    write_inv(fp, site_Cu[1], site_O[2], string(Hx_x2y2[1])*" "*string(+Hx_x2y2[2]))
 
     # d3z2r2-px
     if deg_3d == 3
@@ -124,44 +124,6 @@ function dp_element_d(fp, site_Cu, site_O, Hdp)
     end
 end
 
-
-function dp_element_h(fp, α, site_Cu, site_O, Hdp)
-    Hx_x2y2 = Hdp[1]
-    Hx_3z2r2 = Hdp[2]
-    Hx_xy = Hdp[3]
-
-    # dx2y2-px
-    write_inv(fp, site_Cu[1], site_O[1], string(Hx_x2y2[1])*" "*string(α*Hx_x2y2[2]))
-
-    # d3z2r2-px
-    if deg_3d == 2
-        #write_inv(fp, site_Cu[2], site_O[1], string(Hx_3z2r2[1])*" "*string(α*Hx_3z2r2[2]))
-        write_inv(fp, site_Cu[2], site_O[2], string(Hx_xy[1])*" "*string(α*Hx_xy[2]))
-    end
-
-    # d3z2r2-pz
-    #write_inv(fp, site_Cu[2], site_O[3], string(Hz_3z2r2[1])*" "*string(Hz_3z2r2[2]))
-end
-
-function dp_element_v(fp, α, site_Cu, site_O, Hdp)
-    Hx_x2y2 = Hdp[1]
-    Hx_3z2r2 = Hdp[2]
-    Hx_xy = Hdp[3]
-
-
-    # dx2y2-py
-    write_inv(fp, site_Cu[1], site_O[2], string(Hx_x2y2[1])*" "*string(α*Hx_x2y2[2]))
-
-    if deg_3d == 2
-        # d3z2r2-py
-        #write_inv(fp, site_Cu[2], site_O[2], string(Hx_3z2r2[1])*" "*string(α*Hx_3z2r2[2]))
-        write_inv(fp, site_Cu[2], site_O[2], string(Hx_xy[1])*" "*string(α*Hx_xy[2]))
-
-    end
-
-    # d3z2r2-pz
-    #write_inv(fp, site_Cu[2], site_O[3], string(Hz_3z2r2[1])*" "*string(Hz_3z2r2[2]))
-end
 
 function d_element(fp, site_Cu, Hd)
     Hdx2y2 = Hd[1]
@@ -179,7 +141,7 @@ function d_element(fp, site_Cu, Hd)
 end
 
 function main()
-    filename = "corner_sharing_dp_deg.txt"
+    filename = "tanioka.txt"
 
 
     # 単位胞あたりのサイト数
@@ -303,8 +265,8 @@ function main()
         pp_element_m(fp, site4, site5, Hpp)
 
         dp_element_l(fp, site3, site1, Hdp)
-        dp_element_u(fp, site3, site2, Hdp)
-        dp_element_d(fp, site3, site4, Hdp)
+        dp_element_d(fp, site3, site2, Hdp)
+        dp_element_u(fp, site3, site4, Hdp)
         dp_element_r(fp, site3, site5, Hdp)
     end
 

@@ -11,8 +11,13 @@ include("./Fermion.jl")
 include("./Spectrum.jl")
 include("./Parameter.jl")
 include("./Make_singleband_Hubbard.jl")
+include("./bit_operations.jl")
+include("./output.jl")
 
 PyPlot.rc("font",family ="Times New Roman")
+
+# 出力先
+dir = "./result/HM_HF/"
 
 BLAS.set_num_threads(4)
 
@@ -92,6 +97,7 @@ function main_RIXS(Egs, φgs, system_para, basis)
     ωin = -14.0*t
     
     Ns = system_para.Ns
+    Ne = system_para.Ne
     NΩ = 1000
     # ωin - ωout
     Ω = range(0.0, stop=15.0, length=NΩ)
@@ -109,6 +115,9 @@ function main_RIXS(Egs, φgs, system_para, basis)
         Q[m] = q[1]
        @time Spectrum.calc_1s4p_RIXS_spectrum(m, q, Egs, φgs, H, system_para, RIXS_para, basis)
     end
+    
+    filename = "HM_t_"*string(t)*"_U_"*string(U)*"_fill_"*string(Ne/Ns)*"_Ns_"*string(Ns)*".csv"
+    output.write_data_serial(Q, Ω, G, dir*filename)
 
     #PyPlot.subplot()
     PyPlot.figure(figsize=(8,6))
@@ -128,7 +137,7 @@ end
 function main_XAS(Egs, φgs, system_para, basis)
     g1 = system_para.reciprocal_lattice_vec[1]
     η = 0.2*t
-    Γ = 0.05*t
+    Γ = t
     Vd = 15.0*t
     ωin = 0.0
     n_lanczos_vec = 200
@@ -136,7 +145,7 @@ function main_XAS(Egs, φgs, system_para, basis)
     Nk = 1
     K = zeros(Nk)
     NΩ = 10000
-    Ω = range(-20.0, stop=0.0, length=NΩ)
+    Ω = range(-25.0, stop=5.0, length=NΩ)
     G = zeros(Complex, Nk, NΩ)
     RIXS_para = Parameter.RIXS_para(Vd, η, Γ, n_lanczos_vec, ωin, NΩ, Ω, Nk, K, G)
 
@@ -193,8 +202,6 @@ function Hubbard_model()
     Ny = system_size[3]
     Nz = system_size[4]
     Ns = system_size[5]
-    # 電子数
-    Ne = Ns - 2
 
     # 逆格子ベクトル
     V = dot(unit_vec[1], cross(unit_vec[2], unit_vec[3]))
@@ -203,11 +210,15 @@ function Hubbard_model()
     g3 = 2.0*pi*cross(unit_vec[1], unit_vec[2])/V
     g = [g1, g2, g3]
 
+    # 電子数
+    Ne = Ns
     # 電子数=Ne,totSz=0の基底を作成
-    basis = Fermion.make_n_basis(Ns, Ne)
     nup = div(Ne, 2)
     ndown = Ne - nup
-    basis = Fermion.make_s_basis(Ns, nup, ndown, basis)
+    basis = Fermion.make_restricted_Hilbert_space(Ns, Ne, nup, ndown)
+    #basis = bit_operations.one_particle_basis(Ns, Ns)
+    #basis = bit_operations.two_particle_Sz_0_basis(Ns)
+
     dim = length(basis)
 
     system_para = Parameter.System_para(ns, Nx, Ny, Nz, Ns, Ne, nup, ndown, unit_vec, g, link_mat, link_list, pos)
@@ -232,7 +243,7 @@ function Hubbard_model()
     φgs = @time Krylov.inverse_iteration(H, Egs, maxite=2000, ϵ_inv=1E-10, ϵ_cg=1E-7)
     φgs /= norm(φgs)
 
-    main_spectral_func(Egs, φgs, system_para, basis)
+    #main_spectral_func(Egs, φgs, system_para, basis)
     #PyPlot.show()
 
     #main_XAS(Egs, φgs, system_para, basis)

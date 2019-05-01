@@ -39,4 +39,41 @@ module bit_operations
 
         return basis
     end
+
+    function one_particle_basis(Ns, updown)
+        dim = Ns
+        basis = zeros(Int64, dim)
+    
+        cnt = 1
+        for i in 1:Ns
+            bit = 0
+            bit = bit_on(bit, i + updown)
+            basis[cnt] = bit
+            cnt += 1
+        end
+    
+        return basis
+    end
+
+    function tow_particle_basis(Ns, updown)
+        dim = binomial(Ns, 2)
+        basis = zeros(Int64, dim)
+    
+        cnt = 1
+        for i in 1:Ns - 1
+            bit = 0
+            bit = bit_on(bit, 1 + updown)
+            bit = bit_on(bit, i + 1 + updown)
+            basis[cnt] = bit
+            cnt += 1
+    
+            for j in 1:i - 1
+                bit = bit_shift(bit, j, 1 + updown)
+                basis[cnt] = bit
+                cnt += 1
+            end
+        end
+    
+        return basis
+    end
 end
